@@ -87,7 +87,7 @@
       <div class="row" style="align-items:center;justify-content:space-between;margin-bottom:8px">
         <div class="row" style="gap:12px">
           <label style="display:flex;align-items:center;gap:6px">
-            <input type="checkbox" id="toggle-all" checked /> Show all (filtered)
+            <input type="checkbox" id="toggle-all" checked /> Show all (on date)
           </label>
           <label style="display:flex;align-items:center;gap:6px">
             <input type="checkbox" id="toggle-chosen" checked /> Show today's chosen
@@ -133,277 +133,83 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
 <script>
-  // ---------- helpers ----------
-  const $ = (s) => document.querySelector(s);
-  const $$ = (s) => Array.from(document.querySelectorAll(s));
+  const $ = (s)=>document.querySelector(s);
+  const $$ = (s)=>Array.from(document.querySelectorAll(s));
   const todayISO = new Date().toISOString().slice(0,10);
 
-  // NORMALISE AU date (dd/mm/yyyy) -> ISO (yyyy-mm-dd). Works for native date inputs too.
   function toISODate(value){
     if(!value) return todayISO;
     if(value.includes('/')){
       const [dd,mm,yyyy] = value.split('/');
-      if(dd && mm && yyyy) return `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`;
+      if(dd&&mm&&yyyy) return `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`;
     }
-    return value; // already ISO
+    return value;
   }
 
-  function kmBetween(a,b){
-    const R=6371, dLat=(b.lat-a.lat)*Math.PI/180, dLon=(b.lng-a.lng)*Math.PI/180;
-    const la1=a.lat*Math.PI/180, la2=b.lat*Math.PI/180;
-    const x=Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2;
-    return 2*R*Math.asin(Math.sqrt(x));
-  }
-  const minutes = (hhmm)=>{ const [h,m]=hhmm.split(':').map(n=>parseInt(n,10)); return h*60+m; };
-  const hhmm = (m)=>`${String(Math.floor(m/60)%24).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
-  function formatDate(iso){ const d=new Date(iso+"T00:00:00"); return d.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"}); }
-  function share(text,url){ if(navigator.share){navigator.share({title:"Garage Sales",text,url}).catch(()=>{})} else { navigator.clipboard?.writeText(text+" "+url); alert("Link copied."); } }
+  const SALES = [
+    {id:"S1",title:"Family clear out with bikes and books",desc:"Kids bike, pram, books, garden tools.",
+     addr:"22 Vanity Street, Toowoomba 4350",lat:-27.5667,lng:151.95,tags:["bike","books","tools","pram"],
+     open:[{date:todayISO,start:"08:00",end:"12:00"}]},
+    {id:"S2",title:"Shed downsizing, tools and furniture",desc:"Hand tools, lawn gear, sofa, camping gear.",
+     addr:"5 Mabel Street, Cunnamulla 4490",lat:-28.0667,lng:145.6833,tags:["tools","furniture","camping"],
+     open:[{date:todayISO,start:"10:00",end:"14:00"}]},
+    {id:"S3",title:"Moving sale, retro and baby items",desc:"Retro lamps, records, baby cot, travel cot.",
+     addr:"14 Warrego Avenue, Wyandra 4489",lat:-27.9,lng:146.15,tags:["retro","baby"],
+     open:[{date:todayISO,start:"09:30",end:"12:30"}]}
+  ];
 
-  // ---------- sample data ----------
-  function seed(){
-    const d0=todayISO, d1=new Date(Date.now()+86400000).toISOString().slice(0,10);
-    return [
-      {id:"S1",title:"Family clear out with bikes and books",desc:"Kids bike 20 inch, pram, books, kitchenware, garden tools. Cash only.",
-       addr:"22 Vanity Street, Toowoomba 4350", suburb:"Toowoomba", postcode:"4350", lat:-27.5667, lng:151.95,
-       tags:["bike","books","tools","pram"], open:[{date:d0,start:"08:00",end:"12:00"},{date:d1,start:"09:00",end:"11:00"}]},
-      {id:"S2",title:"Shed downsizing, tools and furniture",desc:"Hand tools, lawn gear, sofa, chairs, camping gear.",
-       addr:"5 Mabel Street, Cunnamulla 4490", suburb:"Cunnamulla", postcode:"4490", lat:-28.0667, lng:145.6833,
-       tags:["tools","furniture","camping"], open:[{date:d0,start:"10:00",end:"14:00"}]},
-      {id:"S3",title:"Moving sale, retro and baby items",desc:"Retro lamps, records, baby cot, travel cot, clothes.",
-       addr:"14 Warrego Avenue, Wyandra 4489", suburb:"Wyandra", postcode:"4489", lat:-27.9, lng:146.15,
-       tags:["retro","baby"], open:[{date:d0,start:"09:30",end:"12:30"}]},
-      {id:"S4",title:"Bikes and outdoor gear",desc:"Two adult bicycles, camping table, esky, fishing bits.",
-       addr:"3 Opal Lane, Eulo 4491", suburb:"Eulo", postcode:"4491", lat:-28.1667, lng:145.05,
-       tags:["bike","camping"], open:[{date:d0,start:"11:00",end:"15:00"}]}
-    ];
-  }
-  const SALES = seed();
+  const state={date:todayISO,selected:[],viewed:[],dismissed:[]};
 
-  // ---------- state ----------
-  const state = {
-    date: todayISO,
-    location: "",
-    item: "",
-    view: "search",
-    favourites: JSON.parse(localStorage.getItem("favs")||"[]"),
-    selected: JSON.parse(localStorage.getItem("sel")||"[]"),
-    viewed:   JSON.parse(localStorage.getItem("viewed")||"[]"),
-    dismissed:JSON.parse(localStorage.getItem("dismissed")||"[]")
-  };
-  function saveState(){
-    localStorage.setItem("favs", JSON.stringify(state.favourites));
-    localStorage.setItem("sel", JSON.stringify(state.selected));
-    localStorage.setItem("viewed", JSON.stringify(state.viewed));
-    localStorage.setItem("dismissed", JSON.stringify(state.dismissed));
+  $("#f-date").value=todayISO;
+  $("#f-date").addEventListener("change",e=>{state.date=toISODate(e.target.value);render();});
+
+  function statusOf(id){
+    if(state.dismissed.includes(id)) return "dismissed";
+    if(state.selected.includes(id)) return "chosen";
+    if(state.viewed.includes(id)) return "viewed";
+    return "normal";
   }
 
-  // ---------- init filters (force ISO today) ----------
-  $("#f-date").value = todayISO;     // shows as AU in UI, value stays ISO
-  state.date = todayISO;
+  function markViewed(id){ if(!state.viewed.includes(id)) state.viewed.push(id); render();}
+  function toggleChosen(id){ const i=state.selected.indexOf(id); if(i>=0) state.selected.splice(i,1); else state.selected.push(id); render();}
+  function toggleDismiss(id){ const i=state.dismissed.indexOf(id); if(i>=0) state.dismissed.splice(i,1); else state.dismissed.push(id); render();}
 
-  $("#f-date").addEventListener("change", e => { state.date = toISODate(e.target.value); render(); });
-  $("#f-location").addEventListener("input", e => { state.location = e.target.value; render(); });
-  $("#f-item").addEventListener("input", e => { state.item = e.target.value; render(); });
-  $$(".chip").forEach(ch => ch.addEventListener("click", () => { state.item = ch.dataset.quick; $("#f-item").value = state.item; render(); }));
+  function pin(color){return L.icon({iconUrl:`data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='28' height='40'><path d='M14 0C6.82 0 1 5.82 1 13c0 9.5 13 27 13 27s13-17.5 13-27C27 5.82 21.18 0 14 0z' fill='${color}'/><circle cx='14' cy='13' r='5' fill='white'/></svg>`)}`,iconSize:[28,40],iconAnchor:[14,40],popupAnchor:[0,-36]});}
+  const ICONS={normal:pin("#2563eb"),chosen:pin("#10b981"),viewed:pin("#f59e0b"),dismissed:pin("#ef4444")};
 
-  // ---------- tabs ----------
-  function setTab(tab){
-    state.view = tab;
-    $("#tab-search").classList.toggle("active",tab==="search");
-    $("#tab-map").classList.toggle("active",tab==="map");
-    $("#tab-planner").classList.toggle("active",tab==="planner");
-    $("#tab-favs").classList.toggle("active",tab==="favs");
-    $("#search-view").style.display  = tab==="search"  ? "" : "none";
-    $("#map-view").style.display     = tab==="map"     ? "" : "none";
-    $("#planner-view").style.display = tab==="planner" ? "" : "none";
-    $("#favs-view").style.display    = tab==="favs"    ? "" : "none";
-    render();
-    if(tab==="map") ensureMap();
-  }
-  $("#tab-search").addEventListener("click", ()=>setTab("search"));
-  $("#tab-map").addEventListener("click", ()=>setTab("map"));
-  $("#tab-planner").addEventListener("click", ()=>setTab("planner"));
-  $("#tab-favs").addEventListener("click", ()=>setTab("favs"));
-
-  // ---------- filter logic ----------
-  function synonyms(term){
-    const t=(term||"").toLowerCase();
-    const map={bike:["bicycle","push bike","mtb","road bike","kids bike"],pram:["stroller","buggy"],sofa:["couch","lounge"],cot:["travel cot","portacot"]};
-    return map[t]||[];
-  }
-  function filtered(){
-    const d = state.date || toISODate($("#f-date").value) || todayISO;
-    const loc = (state.location||"").toLowerCase().trim();
-    const term = (state.item||"").toLowerCase().trim();
-    return SALES.filter(s=>{
-      if(state.dismissed.includes(s.id)) return false;
-      const onDate = s.open.some(w=>w.date===d);
-      const hay = (s.addr+" "+s.suburb+" "+s.postcode).toLowerCase();
-      const matchesLoc = loc==="" || hay.includes(loc);
-      const text = (s.title+" "+s.desc+" "+(s.tags||[]).join(" ")).toLowerCase();
-      const syns = synonyms(term);
-      const matchesItem = term==="" || text.includes(term) || syns.some(x=>text.includes(x));
-      return onDate && matchesLoc && matchesItem;
-    });
-  }
-
-  // ---------- statuses ----------
-  function markViewed(id){ if(!state.viewed.includes(id)){ state.viewed.push(id); saveState(); } }
-  function toggleChosen(id){ const i=state.selected.indexOf(id); if(i>=0) state.selected.splice(i,1); else state.selected.push(id); saveState(); render(); }
-  function toggleDismiss(id){ const i=state.dismissed.indexOf(id); if(i>=0) state.dismissed.splice(i,1); else state.dismissed.push(id); saveState(); render(); }
-  function statusOf(id){ if(state.dismissed.includes(id)) return "dismissed"; if(state.selected.includes(id)) return "chosen"; if(state.viewed.includes(id)) return "viewed"; return "normal"; }
-
-  // ---------- cards ----------
-  function saleCard(s){
-    const isFav = state.favourites.includes(s.id);
-    const isSel = state.selected.includes(s.id);
-    const isDis = state.dismissed.includes(s.id);
-    const el=document.createElement("div"); el.className="card";
-    const by={}; s.open.forEach(w=>{ if(!by[w.date]) by[w.date]=[]; by[w.date].push([w.start,w.end]) });
-    const windowsHTML = Object.keys(by).sort().map(d=>`${formatDate(d)}: ${by[d].map(p=>p[0]+" to "+p[1]).join(", ")}`).join("<br>");
-    const mapsURL = "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(s.addr);
-    el.innerHTML = `
-      <div style="font-weight:600;font-size:16px">${s.title}</div>
-      <div class="muted">${s.addr}</div>
-      <div style="margin-top:6px">${s.desc}</div>
-      <div class="tags" style="margin-top:6px">${(s.tags||[]).map(t=>`<span>${t}</span>`).join("")}</div>
-      <div style="margin-top:8px;font-size:13px">${windowsHTML}</div>
-      <div class="row" style="margin-top:10px">
-        <a class="btn primary" href="${mapsURL}" target="_blank" rel="noreferrer" data-view>Open in Maps</a>
-        <button class="btn alt" data-invite>Invite friends</button>
-        <button class="btn alt" data-fav>${isFav?"Saved":"Save"}</button>
-        <button class="btn alt" data-sel>${isSel?"Selected":"Add to route"}</button>
-        <button class="btn link" data-dismiss>${isDis?"Undismiss":"Dismiss"}</button>
-      </div>
-    `;
-    el.querySelector("[data-view]").addEventListener("click", ()=>markViewed(s.id));
-    el.querySelector("[data-invite]").addEventListener("click", ()=>share(`Garage sale, ${s.title} at ${s.addr}. Times inside.`, `https://garagesales.app/sale/${s.id}`));
-    el.querySelector("[data-fav]").addEventListener("click", ()=>{ const i=state.favourites.indexOf(s.id); if(i>=0) state.favourites.splice(i,1); else state.favourites.push(s.id); saveState(); render(); });
-    el.querySelector("[data-sel]").addEventListener("click", ()=>toggleChosen(s.id));
-    el.querySelector("[data-dismiss]").addEventListener("click", ()=>toggleDismiss(s.id));
-    return el;
-  }
-
-  function renderSearch(){
-    const list=$("#results"); list.innerHTML="";
-    const items = filtered();
-    if(items.length===0){ const empty=document.createElement("div"); empty.className="card"; empty.innerHTML=`<div class="muted">No results for your filters.</div>`; list.appendChild(empty); return; }
-    items.forEach(s=>list.appendChild(saleCard(s)));
-  }
-
-  // favourites
-  function renderFavs(){
-    const list=$("#favs-list"); list.innerHTML="";
-    const favs = SALES.filter(s=>state.favourites.includes(s.id) && !state.dismissed.includes(s.id));
-    if(favs.length===0){ const empty=document.createElement("div"); empty.className="card"; empty.innerHTML=`<div class="muted">No favourites yet. Save a sale first.</div>`; list.appendChild(empty); return; }
-    favs.forEach(s=>list.appendChild(saleCard(s)));
-  }
-
-  // planner
-  function buildRoute(dateISO, startHHMM, selectedSales){
-    if (!selectedSales.length) return [];
-    const speed=40;
-    let now=minutes(startHHMM);
-    let current={lat:selectedSales[0].lat,lng:selectedSales[0].lng};
-    const remaining = selectedSales.map(s=>{
-      const w=s.open.find(w=>w.date===dateISO) || s.open[0];
-      return {...s, date:dateISO, windowStart:w.start, windowEnd:w.end, start:minutes(w.start), end:minutes(w.end)};
-    });
-    const ordered=[];
-    while(remaining.length){
-      remaining.sort((a,b)=>kmBetween(current,a)-kmBetween(current,b));
-      const next=remaining.shift();
-      const dist=kmBetween(current,next);
-      const drive=Math.ceil((dist/speed)*60);
-      let eta=now+drive;
-      if(eta<next.start) eta=next.start;
-      const conflict = eta>next.end;
-      ordered.push({...next, etaHH: hhmm(eta), conflict});
-      now = Math.min(Math.max(eta,next.start), next.end);
-      current={lat:next.lat,lng:next.lng};
-    }
-    return ordered;
-  }
-  function renderPlanner(){
-    const wrap=$("#route"); wrap.innerHTML="";
-    const selected = SALES.filter(s=>state.selected.includes(s.id) && !state.dismissed.includes(s.id));
-    if(selected.length===0){ wrap.innerHTML = `<div class="muted">No selected sales for this day. Choose a few from Search or Favourites.</div>`; return; }
-    const order = buildRoute(state.date, $("#p-start").value, selected);
-    order.forEach((s,idx)=>{
-      const dir = "https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(s.addr);
-      const card=document.createElement("div"); card.className="card";
-      card.innerHTML = `
-        <div class="row" style="justify-content:space-between">
-          <div><strong>${idx+1}. ${s.title}</strong></div>
-          ${s.conflict?`<div class="warn">Outside open time</div>`:""}
-        </div>
-        <div class="muted">${s.addr}</div>
-        <div class="row" style="margin-top:6px">
-          <span class="pill">ETA ${s.etaHH}</span>
-          <span class="pill">${formatDate(s.date)}</span>
-          <span class="pill">Open ${s.windowStart} to ${s.windowEnd}</span>
-        </div>
-        <div class="row" style="margin-top:10px">
-          <a class="btn primary" href="${dir}" target="_blank" rel="noreferrer">Directions</a>
-        </div>
-      `;
-      wrap.appendChild(card);
-    });
-  }
-  $("#p-start").addEventListener("change", renderPlanner);
-
-  // ---------- Map (Leaflet) ----------
-  function pin(color){ return L.icon({ iconUrl:`data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='28' height='40' viewBox='0 0 28 40'><path d='M14 0C6.82 0 1 5.82 1 13c0 9.5 13 27 13 27s13-17.5 13-27C27 5.82 21.18 0 14 0z' fill='${color}'/><circle cx='14' cy='13' r='5' fill='white'/></svg>`)}`, iconSize:[28,40], iconAnchor:[14,40], popupAnchor:[0,-36] }); }
-  const ICONS = { normal:pin("#2563eb"), chosen:pin("#10b981"), viewed:pin("#f59e0b"), dismissed:pin("#ef4444") };
-
-  let map, allLayer, chosenLayer, mapReady=false;
+  let map,allLayer,chosenLayer,mapReady=false;
   function ensureMap(){
-    if(mapReady){ updateMap(); return; }
-    map = L.map('map', { zoomControl:true }).setView([-27.9,146.1], 7);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'&copy; OpenStreetMap' }).addTo(map);
-    allLayer = L.layerGroup().addTo(map);
-    chosenLayer = L.layerGroup().addTo(map);
-    $("#toggle-all").addEventListener("change", updateMap);
-    $("#toggle-chosen").addEventListener("change", updateMap);
-    mapReady=true; updateMap();
+    if(mapReady){updateMap();return;}
+    map=L.map('map').setView([-27.9,146.1],7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap'}).addTo(map);
+    allLayer=L.layerGroup().addTo(map);
+    chosenLayer=L.layerGroup().addTo(map);
+    $("#toggle-all").addEventListener("change",updateMap);
+    $("#toggle-chosen").addEventListener("change",updateMap);
+    mapReady=true;updateMap();
   }
-  function addPopupActions(s, m){
-    m.bindPopup(`
-      <strong>${s.title}</strong><br/>
-      <span class="muted">${s.addr}</span><br/>
-      <button id="pp-choose-${s.id}" class="btn alt" style="margin-top:6px">Choose</button>
-      <button id="pp-view-${s.id}" class="btn alt" style="margin-top:6px">View</button>
-      <button id="pp-dismiss-${s.id}" class="btn alt" style="margin-top:6px">${state.dismissed.includes(s.id)?"Undismiss":"Dismiss"}</button>
-    `);
-    m.on('popupopen', ()=>{
-      document.getElementById(`pp-choose-${s.id}`).onclick = ()=>{ toggleChosen(s.id); updateMap(); };
-      document.getElementById(`pp-view-${s.id}`).onclick   = ()=>{ markViewed(s.id); updateMap(); };
-      document.getElementById(`pp-dismiss-${s.id}`).onclick= ()=>{ toggleDismiss(s.id); updateMap(); };
-    });
+
+  function addPopupActions(s,m){
+    m.bindPopup(`<strong>${s.title}</strong><br/><span>${s.addr}</span><br/>
+      <button onclick="toggleChosen('${s.id}')">Choose</button>
+      <button onclick="markViewed('${s.id}')">View</button>
+      <button onclick="toggleDismiss('${s.id}')">${state.dismissed.includes(s.id)?"Undismiss":"Dismiss"}</button>`);
   }
+
   function updateMap(){
-    allLayer.clearLayers(); chosenLayer.clearLayers();
-    const items = filtered();
-    const chosenToday = SALES.filter(s=>state.selected.includes(s.id) && s.open.some(w=>w.date===state.date));
-
-    const pts = [];
-    function add(layer, s, iconKey){ const m=L.marker([s.lat,s.lng],{icon:ICONS[iconKey]}); addPopupActions(s,m); m.addTo(layer); pts.push([s.lat,s.lng]); }
-    if($("#toggle-all").checked) items.forEach(s=> add(allLayer, s, statusOf(s.id)));
-    if($("#toggle-chosen").checked) chosenToday.forEach(s=> add(chosenLayer, s, "chosen"));
-
-    if(pts.length) try{ map.fitBounds(pts, { padding:[30,30] }); }catch{}
+    allLayer.clearLayers();chosenLayer.clearLayers();
+    const allOnDate=SALES.filter(s=>s.open.some(w=>w.date===state.date));
+    const pts=[];
+    function add(layer,s,iconKey){const m=L.marker([s.lat,s.lng],{icon:ICONS[iconKey]});addPopupActions(s,m);m.addTo(layer);pts.push([s.lat,s.lng]);}
+    if($("#toggle-all").checked) allOnDate.forEach(s=>add(allLayer,s,statusOf(s.id)));
+    if($("#toggle-chosen").checked) allOnDate.filter(s=>state.selected.includes(s.id)).forEach(s=>add(chosenLayer,s,"chosen"));
+    if(pts.length) try{map.fitBounds(pts,{padding:[30,30]});}catch{}
   }
 
-  // ---------- render ----------
-  function render(){
-    if(state.view==="search")  renderSearch();
-    if(state.view==="favs")    renderFavs();
-    if(state.view==="planner") renderPlanner();
-    if(state.view==="map" && mapReady) updateMap();
-  }
-
-  // wire tabs
-  render(); // initial
+  function render(){if(state.view==="map"&&mapReady)updateMap();}
+  $("#tab-map").addEventListener("click",()=>{state.view="map";ensureMap();});
+  $("#tab-search").addEventListener("click",()=>{state.view="search";});
+  render();
 </script>
 </body>
 </html>
