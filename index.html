@@ -1,36 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Garage Sales – Prototype</title>
-  <style>
-    :root { --bg:#f7f7f8; --card:#ffffff; --ink:#111827; --muted:#6b7280; }
-    *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
-    header{background:#fff;border-bottom:1px solid #e5e7eb}
-    .wrap{max-width:1120px;margin:0 auto;padding:16px}
-    h1{margin:0;font-size:20px}
-    nav button{padding:8px 14px;border:0;border-radius:999px;background:#e5e7eb;cursor:pointer}
-    nav button.active{background:#111827;color:#fff}
-    .card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-top:12px}
-    label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
-    input[type="text"],input[type="date"],input[type="time"]{width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px}
-    .row{display:flex;gap:8px;flex-wrap:wrap}
-    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-    @media (max-width:900px){.grid{grid-template-columns:1fr}}
-    .chip{background:#e5e7eb;border-radius:999px;padding:6px 10px;font-size:12px;cursor:pointer}
-    .btn{padding:10px 12px;border-radius:12px;border:0;cursor:pointer;font-size:14px}
-    .btn.primary{background:#111827;color:#fff}
-    .btn.alt{background:#e5e7eb}
-    .muted{color:var(--muted);font-size:14px}
-    .list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-    @media (max-width:900px){.list{grid-template-columns:1fr}}
-    .tags span{background:#f3f4f6;border-radius:999px;padding:4px 8px;font-size:12px;margin-right:6px}
-    .pill{padding:6px 10px;border-radius:999px;background:#f3f4f6;font-size:12px}
-    .warn{color:#b91c1c;font-size:12px}
-    footer{color:var(--muted);text-align:center;padding:24px}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Garage Sales – Prototype with Map & Status</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+  :root { --bg:#f7f7f8; --card:#ffffff; --ink:#111827; --muted:#6b7280; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:#fff;border-bottom:1px solid #e5e7eb}
+  .wrap{max-width:1120px;margin:0 auto;padding:16px}
+  h1{margin:0;font-size:20px}
+  nav button{padding:8px 14px;border:0;border-radius:999px;background:#e5e7eb;cursor:pointer}
+  nav button.active{background:#111827;color:#fff}
+  .card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-top:12px}
+  label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+  input[type="text"],input[type="date"],input[type="time"]{width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  .chip{background:#e5e7eb;border-radius:999px;padding:6px 10px;font-size:12px;cursor:pointer}
+  .btn{padding:10px 12px;border-radius:12px;border:0;cursor:pointer;font-size:14px}
+  .btn.primary{background:#111827;color:#fff}
+  .btn.alt{background:#e5e7eb}
+  .btn.link{background:transparent;text-decoration:underline}
+  .muted{color:var(--muted);font-size:14px}
+  .list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  @media (max-width:900px){.list{grid-template-columns:1fr}}
+  .tags span{background:#f3f4f6;border-radius:999px;padding:4px 8px;font-size:12px;margin-right:6px}
+  .pill{padding:6px 10px;border-radius:999px;background:#f3f4f6;font-size:12px}
+  .warn{color:#b91c1c;font-size:12px}
+  #map{height:520px;border-radius:16px;overflow:hidden}
+  .legend{display:flex;gap:10px;align-items:center;margin-top:8px}
+  .dot{width:12px;height:12px;border-radius:50%}
+  footer{color:var(--muted);text-align:center;padding:24px}
+</style>
 </head>
 <body>
 <header>
@@ -38,6 +43,7 @@
     <h1>Garage Sales</h1>
     <nav class="row">
       <button id="tab-search" class="active">Search</button>
+      <button id="tab-map">Map</button>
       <button id="tab-planner">Planner</button>
       <button id="tab-favs">Favourites</button>
     </nav>
@@ -45,6 +51,7 @@
 </header>
 
 <main class="wrap">
+  <!-- Filters -->
   <section class="card" id="filters">
     <div class="grid">
       <div>
@@ -69,10 +76,36 @@
     </div>
   </section>
 
+  <!-- Search -->
   <section id="search-view">
     <div id="results" class="list"></div>
   </section>
 
+  <!-- Map -->
+  <section id="map-view" style="display:none">
+    <div class="card">
+      <div class="row" style="align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div class="row" style="gap:12px">
+          <label style="display:flex;align-items:center;gap:6px">
+            <input type="checkbox" id="toggle-all" checked /> Show all (filtered)
+          </label>
+          <label style="display:flex;align-items:center;gap:6px">
+            <input type="checkbox" id="toggle-chosen" checked /> Show today's chosen
+          </label>
+        </div>
+        <div class="legend">
+          <span class="dot" style="background:#2563eb"></span><span class="muted">normal</span>
+          <span class="dot" style="background:#10b981"></span><span class="muted">chosen</span>
+          <span class="dot" style="background:#f59e0b"></span><span class="muted">viewed</span>
+          <span class="dot" style="background:#ef4444"></span><span class="muted">dismissed</span>
+        </div>
+      </div>
+      <div id="map"></div>
+      <div class="muted" style="margin-top:8px">Click a pin for quick actions (Choose / View / Dismiss).</div>
+    </div>
+  </section>
+
+  <!-- Planner -->
   <section id="planner-view" style="display:none">
     <div class="card">
       <div class="row" style="gap:12px">
@@ -85,13 +118,12 @@
           <input type="text" id="p-origin" value="Cunnamulla Fella Statue, Cunnamulla" />
         </div>
       </div>
-      <div class="muted" style="margin-top:8px">
-        Order is based on nearest neighbour with time windows, drive times are estimated.
-      </div>
+      <div class="muted" style="margin-top:8px">Order is based on nearest neighbour with time windows; drive times are estimated.</div>
       <div id="route" style="margin-top:12px"></div>
     </div>
   </section>
 
+  <!-- Favourites -->
   <section id="favs-view" style="display:none">
     <div id="favs-list" class="list"></div>
   </section>
@@ -99,8 +131,10 @@
 
 <footer>Prototype only. Data is sample. Invite, favourites and planner run locally.</footer>
 
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
-  // helpers
+  // ===== helpers & state =====
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => Array.from(document.querySelectorAll(s));
   const todayISO = new Date().toISOString().slice(0,10);
@@ -114,11 +148,26 @@
   function minutes(hhmm){const [h,m]=hhmm.split(":").map(n=>parseInt(n,10));return h*60+m}
   function hhmm(mins){const h=Math.floor(mins/60)%24,m=mins%60;return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")}
   function formatDate(iso){const d=new Date(iso+"T00:00:00");return d.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"})}
-
   function share(text,url){
     if(navigator.share){navigator.share({title:"Garage Sales",text,url}).catch(()=>{})}
     else{navigator.clipboard?.writeText(text+" "+url).catch(()=>{}); alert("Link copied to clipboard.");}
   }
+
+  // Colored SVG marker icons (blue, green, orange, red)
+  function pin(color){ return L.icon({
+    iconUrl: `data:image/svg+xml;utf8,${encodeURIComponent(
+      `<svg xmlns='http://www.w3.org/2000/svg' width='28' height='40' viewBox='0 0 28 40'>
+         <path d='M14 0C6.82 0 1 5.82 1 13c0 9.5 13 27 13 27s13-17.5 13-27C27 5.82 21.18 0 14 0z' fill='${color}'/>
+         <circle cx='14' cy='13' r='5' fill='white'/>
+       </svg>` )}`,
+    iconSize:[28,40], iconAnchor:[14,40], popupAnchor:[0,-36]
+  })};
+  const ICONS = {
+    normal: pin("#2563eb"),   // blue
+    chosen: pin("#10b981"),   // green
+    viewed: pin("#f59e0b"),   // orange
+    dismissed: pin("#ef4444") // red
+  };
 
   // sample data
   function seed(){
@@ -129,203 +178,5 @@
        tags:["bike","books","tools","pram"], open:[{date:d0,start:"08:00",end:"12:00"},{date:d1,start:"09:00",end:"11:00"}]},
       {id:"S2",title:"Shed downsizing, tools and furniture",desc:"Hand tools, lawn gear, sofa, chairs, camping gear.",
        addr:"5 Mabel Street, Cunnamulla 4490", suburb:"Cunnamulla", postcode:"4490", lat:-28.0667, lng:145.6833,
-       tags:["tools","furniture","camping"], open:[{date:d0,start:"10:00",end:"14:00"}]},
-      {id:"S3",title:"Moving sale, retro and baby items",desc:"Retro lamps, records, baby cot, travel cot, clothes.",
-       addr:"14 Warrego Avenue, Wyandra 4489", suburb:"Wyandra", postcode:"4489", lat:-27.9, lng:146.15,
-       tags:["retro","baby"], open:[{date:d0,start:"09:30",end:"12:30"}]},
-      {id:"S4",title:"Bikes and outdoor gear",desc:"Two adult bicycles, camping table, esky, fishing bits.",
-       addr:"3 Opal Lane, Eulo 4491", suburb:"Eulo", postcode:"4491", lat:-28.1667, lng:145.05,
-       tags:["bike","camping"], open:[{date:d0,start:"11:00",end:"15:00"}]}
-    ];
-  }
-  const SALES = seed();
+       ta
 
-  // state
-  const state = {
-    date: todayISO,
-    location: "",
-    item: "",
-    view: "search",
-    favourites: JSON.parse(localStorage.getItem("favs")||"[]"),
-    selected: []
-  };
-
-  // init filters
-  $("#f-date").value = state.date;
-  $("#f-date").addEventListener("change", e => { state.date = e.target.value; render(); });
-  $("#f-location").addEventListener("input", e => { state.location = e.target.value; render(); });
-  $("#f-item").addEventListener("input", e => { state.item = e.target.value; render(); });
-  $$(".chip").forEach(ch => ch.addEventListener("click", () => {
-    state.item = ch.dataset.quick; $("#f-item").value = state.item; render();
-  }));
-
-  // tabs
-  function setTab(tab){
-    state.view = tab;
-    $("#tab-search").classList.toggle("active",tab==="search");
-    $("#tab-planner").classList.toggle("active",tab==="planner");
-    $("#tab-favs").classList.toggle("active",tab==="favs");
-    $("#search-view").style.display = tab==="search" ? "" : "none";
-    $("#planner-view").style.display = tab==="planner" ? "" : "none";
-    $("#favs-view").style.display = tab==="favs" ? "" : "none";
-    render();
-  }
-  $("#tab-search").addEventListener("click", ()=>setTab("search"));
-  $("#tab-planner").addEventListener("click", ()=>setTab("planner"));
-  $("#tab-favs").addEventListener("click", ()=>setTab("favs"));
-
-  // search and filter
-  function synonyms(term){
-    const t=(term||"").toLowerCase();
-    const map={bike:["bicycle","push bike","mtb","road bike","kids bike"],pram:["stroller","buggy"],sofa:["couch","lounge"],cot:["travel cot","portacot"]};
-    return map[t]||[];
-  }
-  function filtered(){
-    const d = state.date;
-    const loc = (state.location||"").toLowerCase().trim();
-    const term = (state.item||"").toLowerCase().trim();
-    return SALES.filter(s=>{
-      const onDate = s.open.some(w=>w.date===d);
-      const hay = (s.addr+" "+s.suburb+" "+s.postcode).toLowerCase();
-      const matchesLoc = loc==="" || hay.includes(loc);
-      const text = (s.title+" "+s.desc+" "+(s.tags||[]).join(" ")).toLowerCase();
-      const syns = synonyms(term);
-      const matchesItem = term==="" || text.includes(term) || syns.some(x=>text.includes(x));
-      return onDate && matchesLoc && matchesItem;
-    });
-  }
-
-  // render cards
-  function saleCard(s){
-    const isFav = state.favourites.includes(s.id);
-    const isSel = state.selected.includes(s.id);
-    const el=document.createElement("div"); el.className="card";
-    const by={}; s.open.forEach(w=>{ if(!by[w.date]) by[w.date]=[]; by[w.date].push([w.start,w.end]) });
-    const windowsHTML = Object.keys(by).sort().map(d=>`${formatDate(d)}: ${by[d].map(p=>p[0]+" to "+p[1]).join(", ")}`).join("<br>");
-    const mapsURL = "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(s.addr);
-    el.innerHTML = `
-      <div style="font-weight:600;font-size:16px">${s.title}</div>
-      <div class="muted">${s.addr}</div>
-      <div style="margin-top:6px">${s.desc}</div>
-      <div class="tags" style="margin-top:6px">${(s.tags||[]).map(t=>`<span>${t}</span>`).join("")}</div>
-      <div style="margin-top:8px;font-size:13px">${windowsHTML}</div>
-      <div class="row" style="margin-top:10px">
-        <a class="btn primary" href="${mapsURL}" target="_blank" rel="noreferrer">Open in Maps</a>
-        <button class="btn alt" data-invite>Invite friends</button>
-        <button class="btn alt" data-fav>${isFav?"Saved":"Save"}</button>
-        <button class="btn alt" data-sel>${isSel?"Selected":"Add to route"}</button>
-      </div>
-    `;
-    el.querySelector("[data-invite]").addEventListener("click", ()=>{
-      const url = `https://garagesales.app/sale/${s.id}`;
-      share(`Garage sale, ${s.title} at ${s.addr}. Times inside.`, url);
-    });
-    el.querySelector("[data-fav]").addEventListener("click", ()=>{
-      const i=state.favourites.indexOf(s.id);
-      if(i>=0) state.favourites.splice(i,1); else state.favourites.push(s.id);
-      localStorage.setItem("favs", JSON.stringify(state.favourites));
-      render();
-    });
-    el.querySelector("[data-sel]").addEventListener("click", ()=>{
-      const i=state.selected.indexOf(s.id);
-      if(i>=0) state.selected.splice(i,1); else state.selected.push(s.id);
-      render();
-    });
-    return el;
-  }
-
-  function renderSearch(){
-    const list=$("#results"); list.innerHTML="";
-    const items = filtered();
-    if(items.length===0){
-      const empty=document.createElement("div"); empty.className="card"; empty.innerHTML=`<div class="muted">No results for your filters.</div>`;
-      list.appendChild(empty); return;
-    }
-    items.forEach(s=>list.appendChild(saleCard(s)));
-  }
-
-  // favourites
-  function renderFavs(){
-    const list=$("#favs-list"); list.innerHTML="";
-    const favs = SALES.filter(s=>state.favourites.includes(s.id));
-    if(favs.length===0){
-      const empty=document.createElement("div"); empty.className="card"; empty.innerHTML=`<div class="muted">No favourites yet. Save a sale first.</div>`;
-      list.appendChild(empty); return;
-    }
-    favs.forEach(s=>list.appendChild(saleCard(s)));
-  }
-
-  // planner
-  function buildRoute(dateISO, startHHMM, selectedSales){
-    if (!selectedSales.length) return [];
-    const speed=40; // km per hour estimate
-    let now=minutes(startHHMM);
-    let current={lat:selectedSales[0].lat,lng:selectedSales[0].lng};
-    const remaining = selectedSales.map(s=>{
-      const w=s.open.find(w=>w.date===dateISO) || s.open[0];
-      return {...s, date:dateISO, windowStart:w.start, windowEnd:w.end, start:minutes(w.start), end:minutes(w.end)};
-    });
-    const ordered=[];
-    while(remaining.length){
-      remaining.sort((a,b)=>kmBetween(current,a)-kmBetween(current,b));
-      const next=remaining.shift();
-      const dist=kmBetween(current,next);
-      const drive=Math.ceil((dist/speed)*60);
-      let eta=now+drive;
-      if(eta<next.start) eta=next.start; // wait if early
-      const conflict = eta>next.end;
-      ordered.push({...next, etaHH: hhmm(eta), conflict});
-      now = Math.min(Math.max(eta,next.start), next.end);
-      current={lat:next.lat,lng:next.lng};
-    }
-    return ordered;
-  }
-
-  function renderPlanner(){
-    const wrap=$("#route"); wrap.innerHTML="";
-    const selected = SALES.filter(s=>state.selected.includes(s.id));
-    if(selected.length===0){
-      wrap.innerHTML = `<div class="muted">No selected sales for this day. Choose a few from Search or Favourites.</div>`;
-      return;
-    }
-    const order = buildRoute(state.date, $("#p-start").value, selected);
-    order.forEach((s,idx)=>{
-      const dir = "https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(s.addr);
-      const card=document.createElement("div"); card.className="card";
-      card.innerHTML = `
-        <div class="row" style="justify-content:space-between">
-          <div><strong>${idx+1}. ${s.title}</strong></div>
-          ${s.conflict?`<div class="warn">Outside open time</div>`:""}
-        </div>
-        <div class="muted">${s.addr}</div>
-        <div class="row" style="margin-top:6px">
-          <span class="pill">ETA ${s.etaHH}</span>
-          <span class="pill">${formatDate(s.date)}</span>
-          <span class="pill">Open ${s.windowStart} to ${s.windowEnd}</span>
-        </div>
-        <div class="row" style="margin-top:10px">
-          <a class="btn primary" href="${dir}" target="_blank" rel="noreferrer">Directions</a>
-          <button class="btn alt" data-share>Share route</button>
-        </div>
-      `;
-      card.querySelector("[data-share]")?.addEventListener("click", ()=>{
-        const ids = order.map(o=>o.id).join(",");
-        const url = `https://garagesales.app/route/${ids}`;
-        share("My garage sale run for today.", url);
-      });
-      wrap.appendChild(card);
-    });
-  }
-
-  // wire up
-  $("#p-start").addEventListener("change", renderPlanner);
-
-  function render(){
-    if(state.view==="search") renderSearch();
-    if(state.view==="favs") renderFavs();
-    if(state.view==="planner") renderPlanner();
-  }
-  render();
-</script>
-</body>
-</html>
