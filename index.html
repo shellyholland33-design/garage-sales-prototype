@@ -1,1 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Garage Sales – Toowoomba Prototype (Date Picker + Map Actions)</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous"/>
+<style>
+  :root { --bg:#f7f7f8; --card:#ffffff; --ink:#111827; --muted:#6b7280; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:#fff;border-bottom:1px solid #e5e7eb}
+  .wrap{max-width:1120px;margin:0 auto;padding:16px}
+  h1{margin:0;font-size:20px}
+  .card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-top:12px}
+  .legend{display:flex;gap:12px;align-items:center;margin-bottom:8px}
+  .dot{width:10px;height:10px;border-radius:50%}
+  #map{height:520px;border-radius:16px;overflow:hidden}
+  .muted{color:var(--muted)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .seg{border:1px solid #e5e7eb;border-radius:999px;overflow:hidden;display:inline-flex}
+  .seg button{padding:8px 12px;border:0;background:#fff;cursor:pointer}
+  .seg button.active{background:#111827;color:#fff}
+  .pill{padding:6px 10px;border-radius:999px;background:#f3f4f6;font-size:12px}
+  input[type="date"]{padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px}
+  .pp-btn{margin-top:6px;padding:6px 10px;border-radius:10px;border:0;cursor:pointer}
+  .pp-row{display:flex;gap:6px;flex-wrap:wrap}
+  .pp-choose{background:#10b981;color:#fff}
+  .pp-view{background:#f59e0b;color:#111}
+  .pp-dismiss{background:#ef4444;color:#fff}
+  .pp-undismiss{background:#e5e7eb}
+  #empty{display:none;margin-top:8px}
+  #err{display:none;position:fixed;left:10px;right:10px;bottom:10px;background:#fee2e2;color:#7f1d1d;padding:10px;border-radius:8px;font-size:13px;z-index:9999}
+  .btn-reset{margin-left:auto;padding:8px 12px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;cursor:pointer}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap" style="display:flex;align-items:center;justify-content:space-between">
+    <h1>Garage Sales</h1>
+  </div>
+</header>
 
+<main class="wrap">
+  <section class="card">
+    <div class="legend">
+      <span class="dot" style="background:#2563eb"></span><span class="muted">new</span>
+      <span class="dot" style="background:#10b981"></span><span class="muted">chosen</span>
+      <span class="dot" style="background:#f59e0b"></span><span class="muted">viewed</span>
+      <span class="dot" style="background:#ef4444"></span><span class="muted">dismissed</span>
+      <button id="btn-reset" class="btn-reset" title="Clear chosen/viewed/dismissed">Reset statuses</button>
+    </div>
+
+    <div class="row" style="margin:8px 0 12px">
+      <div class="seg" role="tablist" aria-label="Day selector">
+        <button id="btn-yesterday" role="tab">Yesterday</button>
+        <button id="btn-today" role="tab" class="active">Today</button>
+        <button id="btn-tomorrow" role="tab">Tomorrow</button>
+      </div>
+      <input id="date-picker" type="date" aria-label="Pick a date"/>
+      <span id="date-label" class="pill"></span>
+    </div>
+
+    <div id="map"></div>
+    <div id="empty" class="muted">No sales for this date (demo covers 30–31 Aug 2025).</div>
+    <div class="muted" style="margin-top:8px">Tap a pin → Choose / View / Dismiss. Status colour updates immediately.</div>
+  </section>
+</main>
+
+<div id="err"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
+<script>
+/* show any JS error instead of a blank page */
+window.addEventListener('error', (e)=>{
+  const box=document.getElementById('err');
+  box.style.display='block';
+  box.textContent='Error: '+(e.message||e.error);
+});
+
+/* timezone-safe dates */
+function localISODate(date=new Date()){
+  const tz=date.getTimezoneOffset()*60000;
+  return new Date(date.getTime()-tz).toISOString().slice(0,10);
+}
+function addDaysISO(iso, days){
+  const [y,m,d]=iso.split('-').map(Number);
+  // Use UTC math, then convert back through localISODate to avoid DST edge cases
+  const dt=new Date(Date.UTC(y,m-1,d));
+  dt.setUTCDate(dt.getUTCDate()+days);
+  return localISODate(new Date(dt));
+}
+function formatDateNice(iso){
+  return new Date(iso+"T00:00:00").toLocaleDateString(undefined,{
+    weekday:"short", day:"numeric", month:"short", year:"numeric"
+  });
+}
+
+const todayISO=localISODate();
+let currentDateISO=todayISO;
+
+/* --- Demo dataset: Toowoomba x10 across 30–31 Aug 2025 --- */
+const D0="2025-08-30", D1="2025-08-31";
+const SALES=[
+ {id:"T1",title:"Rangeville family clear-out (bikes, books)",addr:"12 South Street, Rangeville QLD 4350",lat:-27.58,lng:151.973,open:[{date:D0,start:"08:00",end:"12:00"},{date:D1,start:"08:00",end:"12:00"}]},
+ {id:"T2",title:"Centenary Heights downsizing – furniture & tools",addr:"5 Southland Street, Centenary Heights QLD 4350",lat:-27.594,lng:151.966,open:[{date:D0,start:"09:00",end:"13:00"},{date:D1,start:"09:00",end:"13:00"}]},
+ {id:"T3",title:"Newtown shed sale – retro, records",addr:"40 Holberton Street, Newtown QLD 4350",lat:-27.558,lng:151.93,open:[{date:D0,start:"08:30",end:"12:30"}]},
+ {id:"T4",title:"Harristown moving sale – baby gear",addr:"18 Campbell Street, Harristown QLD 4350",lat:-27.586,lng:151.929,open:[{date:D1,start:"10:00",end:"14:00"}]},
+ {id:"T5",title:"Kearneys Spring multi-house sale – camping",addr:"6 West Street, Kearneys Spring QLD 4350",lat:-27.603,lng:151.945,open:[{date:D0,start:"07:30",end:"11:30"}]},
+ {id:"T6",title:"East Toowoomba – garden & kitchenware",addr:"98 Mary Street, East Toowoomba QLD 4350",lat:-27.563,lng:151.971,open:[{date:D1,start:"08:00",end:"12:00"}]},
+ {id:"T7",title:"North Toowoomba – bikes & games",addr:"15 Jones Street, North Toowoomba QLD 4350",lat:-27.541,lng:151.946,open:[{date:D1,start:"09:30",end:"12:30"}]},
+ {id:"T8",title:"Wilsonton – tools, mower, ladders",addr:"2 Erin Street, Wilsonton QLD 4350",lat:-27.54,lng:151.903,open:[{date:D0,start:"08:00",end:"12:00"}]},
+ {id:"T9",title:"Mount Lofty – retro lamps & decor",addr:"7 Stuart Street, Mount Lofty QLD 4350",lat:-27.545,lng:151.963,open:[{date:D1,start:"10:00",end:"14:00"}]},
+ {id:"T10",title:"South Toowoomba – pram, kids clothes",addr:"21 Long Street, South Toowoomba QLD 4350",lat:-27.575,lng:151.948,open:[{date:D0,start:"08:30",end:"12:30"}]}
+];
+
+/* --- Status state + helpers --- */
+const state={
+  selected:JSON.parse(localStorage.getItem("sel")||"[]"),
+  viewed:JSON.parse(localStorage.getItem("viewed")||"[]"),
+  dismissed:JSON.parse(localStorage.getItem("dismissed")||"[]")
+};
+function save(){
+  localStorage.setItem("sel",JSON.stringify(state.selected));
+  localStorage.setItem("viewed",JSON.stringify(state.viewed));
+  localStorage.setItem("dismissed",JSON.stringify(state.dismissed));
+}
+function resetStatuses(){
+  state.selected=[]; state.viewed=[]; state.dismissed=[];
+  save(); mountPins();
+}
+document.getElementById('btn-reset').addEventListener('click', resetStatuses);
+
+function statusOf(id){
+  if(state.dismissed.includes(id)) return "dismissed";
+  if(state.selected.includes(id)) return "chosen";
+  if(state.viewed.includes(id))   return "viewed";
+  return "new";
+}
+function markViewed(id){
+  if(!state.viewed.includes(id)){ state.viewed.push(id); save(); setMarkerIcon(id); }
+}
+function toggleChosen(id){
+  const i=state.selected.indexOf(id);
+  if(i>=0) state.selected.splice(i,1); else state.selected.push(id);
+  save(); setMarkerIcon(id);
+}
+function toggleDismiss(id){
+  const i=state.dismissed.indexOf(id);
+  if(i>=0) state.dismissed.splice(i,1); else state.dismissed.push(id);
+  save(); setMarkerIcon(id);
+}
+
+/* --- Map + icons --- */
+function pin(color){return L.icon({
+  iconUrl:`data:image/svg+xml;utf8,${encodeURIComponent(
+`<svg xmlns='http://www.w3.org/2000/svg' width='28' height='40'>
+  <path d='M14 0C6.82 0 1 5.82 1 13c0 9.5 13 27 13 27s13-17.5 13-27C27 5.82 21.18 0 14 0z' fill='${color}'/>
+  <circle cx='14' cy='13' r='5' fill='white'/>
+</svg>`)}`
+  ,iconSize:[28,40],iconAnchor:[14,40],popupAnchor:[0,-36]
+});}
+const ICONS={new:pin("#2563eb"), chosen:pin("#10b981"), viewed:pin("#f59e0b"), dismissed:pin("#ef4444")};
+
+let map, pinsLayer;
+let markers={}; // id -> L.Marker (rebuilt every mount)
+
+/* Popup HTML (buttons get re-bound on every popup open or content refresh) */
+function popupHTML(s){
+  const dismissed = state.dismissed.includes(s.id);
+  const gmaps = "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(s.addr);
+  return `
+    <strong>${s.title}</strong><br/>
+    <span class="muted">${s.addr}</span><br/>
+    <a class="muted" href="${gmaps}" target="_blank" rel="noreferrer">Open in Google Maps</a>
+    <div class="pp-row">
+      <button class="pp-btn pp-choose" data-act="choose" data-id="${s.id}">Choose</button>
+      <button class="pp-btn pp-view" data-act="view" data-id="${s.id}">View</button>
+      <button class="pp-btn ${dismissed?'pp-undismiss':'pp-dismiss'}" data-act="dismiss" data-id="${s.id}">
+        ${dismissed?'Undismiss':'Dismiss'}
+      </button>
+    </div>`;
+}
+
+function setMarkerIcon(id){
+  const st=statusOf(id);
+  const m=markers[id];
+  if(m){ m.setIcon(ICONS[st]); }
+}
+
+function updateDateLabel(){
+  document.getElementById('date-label').textContent = formatDateNice(currentDateISO);
+  const dp = document.getElementById('date-picker');
+  dp.value = currentDateISO;
+}
+
+function mountPins(){
+  // clear previous layer + markers
+  if(!pinsLayer){ pinsLayer=L.layerGroup().addTo(map); }
+  pinsLayer.clearLayers();
+  markers = {};
+
+  const todays = SALES.filter(s => s.open.some(o=>o.date===currentDateISO));
+  const pts=[];
+  todays.forEach(s=>{
+    const st=statusOf(s.id);
+    const m=L.marker([s.lat,s.lng],{icon:ICONS[st]});
+    m.bindPopup(popupHTML(s));
+    m.on('popupopen', (ev)=>{
+      const node=ev.popup.getElement();
+      const btnChoose  = node.querySelector('[data-act="choose"]');
+      const btnView    = node.querySelector('[data-act="view"]');
+      const btnDismiss = node.querySelector('[data-act="dismiss"]');
+      if(btnChoose)  btnChoose.onclick  = ()=>{ toggleChosen(s.id);  m.setIcon(ICONS[statusOf(s.id)]); m.setPopupContent(popupHTML(s)); };
+      if(btnView)    btnView.onclick    = ()=>{ markViewed(s.id);    m.setIcon(ICONS[statusOf(s.id)]); m.setPopupContent(popupHTML(s)); };
+      if(btnDismiss) btnDismiss.onclick = ()=>{ toggleDismiss(s.id); m.setIcon(ICONS[statusOf(s.id)]); m.setPopupContent(popupHTML(s)); };
+    });
+    m.addTo(pinsLayer);
+    markers[s.id]=m;
+    pts.push([s.lat,s.lng]);
+  });
+
+  const empty = document.getElementById('empty');
+  empty.style.display = todays.length ? 'none' : 'block';
+
+  if(pts.length){
+    try{ map.fitBounds(pts,{padding:[30,30]}); }catch{}
+  }
+}
+
+function initMap(){
+  map=L.map('map',{zoomControl:true}).setView([-27.5598,151.9507],12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap'}).addTo(map);
+  updateDateLabel();
+  mountPins();
+}
+
+/* --- Date switch wiring --- */
+function setActive(btnId){
+  ['btn-yesterday','btn-today','btn-tomorrow'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    el.classList.toggle('active', id===btnId);
+  });
+}
+document.getElementById('btn-yesterday').addEventListener('click', ()=>{
+  currentDateISO = addDaysISO(todayISO, -1);
+  setActive('btn-yesterday');
+  updateDateLabel();
+  mountPins();
+});
+document.getElementById('btn-today').addEventListener('click', ()=>{
+  currentDateISO = todayISO;
+  setActive('btn-today');
+  updateDateLabel();
+  mountPins();
+});
+document.getElementById('btn-tomorrow').addEventListener('click', ()=>{
+  currentDateISO = addDaysISO(todayISO, 1);
+  setActive('btn-tomorrow');
+  updateDateLabel();
+  mountPins();
+});
+document.getElementById('date-picker').addEventListener('change', (e)=>{
+  if(!e.target.value) return;
+  currentDateISO = e.target.value;
+  // When using the picker, clear button active state if it’s not exactly yesterday/today/tomorrow
+  const isY = currentDateISO === addDaysISO(todayISO,-1);
+  const isT = currentDateISO === todayISO;
+  const isN = currentDateISO === addDaysISO(todayISO,1);
+  setActive(isY ? 'btn-yesterday' : isT ? 'btn-today' : isN ? 'btn-tomorrow' : '');
+  updateDateLabel();
+  mountPins();
+});
+
+initMap();
+</script>
+</body>
+</html>
