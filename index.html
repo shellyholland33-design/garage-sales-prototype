@@ -40,7 +40,6 @@
   footer{color:var(--muted);text-align:center;padding:24px}
   .sources{display:flex;gap:10px;flex-wrap:wrap}
   .sources label{display:flex;align-items:center;gap:6px;font-size:13px}
-  /* tiny inline error banner for quick debugging */
   #err{display:none;position:fixed;left:10px;right:10px;bottom:10px;background:#fee2e2;color:#7f1d1d;padding:10px;border-radius:8px;font-size:13px;z-index:9999}
 </style>
 </head>
@@ -152,22 +151,23 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
 <script>
-/* ===== tiny error banner so a bad paste never leaves a blank page ===== */
+/* ===== error banner so you never get a silent blank page ===== */
 window.addEventListener('error', (e)=>{
   const box = document.getElementById('err');
   box.style.display='block';
   box.textContent = 'Error: ' + (e.message || e.error);
 });
 
-/* ====================== helpers ====================== */
+/* ================= helpers ================= */
 const $ = (s)=>document.querySelector(s);
 const $$ = (s)=>Array.from(document.querySelectorAll(s));
 
+// Local ISO date using device timezone (fixes UTC offset issues)
 function localISODate(date = new Date()) {
-  const tz = date.getTimezoneOffset() * 60000; // minutes -> ms
+  const tz = date.getTimezoneOffset() * 60000;
   return new Date(date.getTime() - tz).toISOString().slice(0, 10);
 }
-const todayISO = localISODate(); // device-local today (AEST ok)
+const todayISO = localISODate();
 
 function toISODate(value){
   if(!value) return todayISO;
@@ -182,11 +182,10 @@ const hhmm=(m)=>`${String(Math.floor(m/60)%24).padStart(2,'0')}:${String(m%60).p
 const formatDate=(iso)=>new Date(iso+"T00:00:00").toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"});
 const share=(text,url)=>{if(navigator.share){navigator.share({title:"Garage Sales",text,url}).catch(()=>{})}else{navigator.clipboard?.writeText(text+" "+url);alert("Link copied.");}};
 
-/* ====================== sample Toowoomba data (10 listings over 30–31 Aug) ====================== */
+/* ============ demo data: Toowoomba x10 across 30–31 Aug 2025 ============ */
 const D0 = "2025-08-30";
 const D1 = "2025-08-31";
 const T=(h,m)=>`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-
 const SALES = [
   {id:"T1",title:"Rangeville family clear-out (bikes, books)",source:"newspaper",addr:"12 South Street, Rangeville QLD 4350",lat:-27.58,lng:151.973,tags:["bike","books","pram","tools"],open:[{date:D0,start:T(8,0),end:T(12,0)},{date:D1,start:T(8,0),end:T(12,0)}]},
   {id:"T2",title:"Centenary Heights downsizing – furniture & tools",source:"craigslist",addr:"5 Southland Street, Centenary Heights QLD 4350",lat:-27.594,lng:151.966,tags:["furniture","tools"],open:[{date:D0,start:T(9,0),end:T(13,0)},{date:D1,start:T(9,0),end:T(13,0)}]},
@@ -200,7 +199,7 @@ const SALES = [
   {id:"T10",title:"South Toowoomba – pram, kids clothes",source:"newspaper",addr:"21 Long Street, South Toowoomba QLD 4350",lat:-27.575,lng:151.948,tags:["pram","clothes"],open:[{date:D0,start:T(8,30),end:T(12,30)}]}
 ];
 
-/* ====================== state ====================== */
+/* ================= state ================= */
 const state={
   date: todayISO,
   location:"Toowoomba",
@@ -219,7 +218,7 @@ function saveState(){
   localStorage.setItem("dismissed", JSON.stringify(state.dismissed));
 }
 
-/* ====================== inputs ====================== */
+/* ================= inputs ================= */
 $("#f-date").value = state.date;
 $("#f-date").addEventListener("change",e=>{ state.date=toISODate(e.target.value); render(); });
 $("#f-location").addEventListener("input",e=>{ state.location=e.target.value; render(); });
@@ -227,13 +226,13 @@ $("#f-item").addEventListener("input",e=>{ state.item=e.target.value; render(); 
 $$(".chip").forEach(ch=>ch.addEventListener("click",()=>{ state.item=ch.dataset.quick; $("#f-item").value=state.item; render(); }));
 $$(".src").forEach(cb=>cb.addEventListener("change",()=>{ cb.checked?state.sources.add(cb.value):state.sources.delete(cb.value); render(); }));
 
-/* ====================== status helpers ====================== */
+/* ================= statuses ================= */
 function markViewed(id){ if(!state.viewed.includes(id)){ state.viewed.push(id); saveState(); render(); } }
 function toggleChosen(id){ const i=state.selected.indexOf(id); if(i>=0) state.selected.splice(i,1); else state.selected.push(id); saveState(); render(); }
 function toggleDismiss(id){ const i=state.dismissed.indexOf(id); if(i>=0) state.dismissed.splice(i,1); else state.dismissed.push(id); saveState(); render(); }
 function statusOf(id){ if(state.dismissed.includes(id)) return "dismissed"; if(state.selected.includes(id)) return "chosen"; if(state.viewed.includes(id)) return "viewed"; return "normal"; }
 
-/* ====================== filtering ====================== */
+/* ================= filtering ================= */
 function synonyms(term){
   const t=(term||"").toLowerCase();
   const map={bike:["bicycle","push bike","mtb","road bike","kids bike"],pram:["stroller","buggy"],sofa:["couch","lounge"],cot:["travel cot","portacot"]};
@@ -249,7 +248,7 @@ function filteredForList(){
   const syns=synonyms(term);
   return onDateSales().filter(s=>{
     if(!state.sources.has(s.source)) return false;
-    const hay=(s.addr).toLowerCase();
+    const hay=s.addr.toLowerCase();
     const text=(s.title+" "+(s.tags||[]).join(" ")).toLowerCase();
     const matchesLoc = loc==="" || hay.includes(loc);
     const matchesItem = term==="" || text.includes(term) || syns.some(x=>text.includes(x));
@@ -257,7 +256,7 @@ function filteredForList(){
   });
 }
 
-/* ====================== list ====================== */
+/* ================= list ================= */
 function saleCard(s){
   const st=statusOf(s.id);
   const isFav=state.favourites.includes(s.id);
@@ -305,7 +304,7 @@ function renderSearch(){
   items.forEach(s=>list.appendChild(saleCard(s)));
 }
 
-/* ====================== favourites ====================== */
+/* ================= favourites ================= */
 function renderFavs(){
   const list=$("#favs-list"); list.innerHTML="";
   const favs = filteredForList().filter(s=>state.favourites.includes(s.id));
@@ -313,7 +312,7 @@ function renderFavs(){
   favs.forEach(s=>list.appendChild(saleCard(s)));
 }
 
-/* ====================== planner ====================== */
+/* ================= planner ================= */
 function kmBetween(a,b){
   const R=6371, dLat=(b.lat-a.lat)*Math.PI/180, dLon=(b.lng-a.lng)*Math.PI/180;
   const la1=a.lat*Math.PI/180, la2=b.lat*Math.PI/180;
@@ -364,7 +363,7 @@ function renderPlanner(){
 }
 $("#p-start").addEventListener("change",renderPlanner);
 
-/* ====================== map ====================== */
+/* ================= map ================= */
 function pin(color){return L.icon({iconUrl:`data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='28' height='40'><path d='M14 0C6.82 0 1 5.82 1 13c0 9.5 13 27 13 27s13-17.5 13-27C27 5.82 21.18 0 14 0z' fill='${color}'/><circle cx='14' cy='13' r='5' fill='white'/></svg>`)}`,iconSize:[28,40],iconAnchor:[14,40],popupAnchor:[0,-36]});}
 const ICONS={normal:pin("#2563eb"),chosen:pin("#10b981"),viewed:pin("#f59e0b"),dismissed:pin("#ef4444")};
 let map,allLayer,chosenLayer,mapReady=false;
@@ -396,7 +395,7 @@ function addPopupActions(s,m){
 }
 function updateMap(){
   allLayer.clearLayers(); chosenLayer.clearLayers();
-  const allOnDate = filteredForList(); // apply filters
+  const allOnDate = filteredForList();
   const pts=[];
   const add=(layer,s,icon)=>{ const m=L.marker([s.lat,s.lng],{icon:ICONS[icon]}); addPopupActions(s,m); m.addTo(layer); pts.push([s.lat,s.lng]); };
   if($("#toggle-all").checked) allOnDate.forEach(s=> add(allLayer,s,statusOf(s.id)));
@@ -404,7 +403,7 @@ function updateMap(){
   if(pts.length) try{ map.fitBounds(pts,{padding:[30,30]}); } catch{}
 }
 
-/* ====================== tabs & render ====================== */
+/* ================= tabs & initial render ================= */
 function setTab(tab){
   state.view=tab;
   $("#tab-search").classList.toggle("active",tab==="search");
@@ -429,7 +428,8 @@ function render(){
   if(state.view==="planner") renderPlanner();
   if(state.view==="map" && mapReady) updateMap();
 }
-renderSearch(); // first paint
+
+renderSearch(); // initial paint
 </script>
 </body>
 </html>
