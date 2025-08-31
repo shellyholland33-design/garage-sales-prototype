@@ -1,553 +1,114 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Garage Sales – Prototype (Search • Map • Planner)</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous"/>
-<style>
-  :root { --bg:#f7f7f8; --card:#ffffff; --ink:#111827; --muted:#6b7280; --line:#e5e7eb; }
-  *{box-sizing:border-box}
-  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
-  header{background:#fff;border-bottom:1px solid var(--line)}
-  .wrap{max-width:1120px;margin:0 auto;padding:16px}
-  h1{margin:0;font-size:20px}
-  nav{display:flex;gap:8px}
-  nav button{padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:#fff;cursor:pointer}
-  nav button.active{background:#111827;color:#fff;border-color:#111827}
-  .card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-top:12px}
-  label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
-  input[type="text"],input[type="date"]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px}
-  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-  @media (max-width:900px){.grid{grid-template-columns:1fr}}
-  .chip{background:#e5e7eb;border-radius:999px;padding:6px 10px;font-size:12px;cursor:pointer}
-  .btn{padding:10px 12px;border-radius:12px;border:1px solid var(--line);cursor:pointer;font-size:14px;background:#fff}
-  .btn.primary{background:#111827;color:#fff;border-color:#111827}
-  .btn.small{padding:6px 10px;font-size:12px}
-  .muted{color:var(--muted)}
-  #map{height:520px;border-radius:16px;overflow:hidden}
-  .legend{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-  .dot{width:10px;height:10px;border-radius:50%}
-  .list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-  @media (max-width:900px){.list{grid-template-columns:1fr}}
-  .card-item{border:1px solid var(--line);border-radius:12px;padding:12px}
-  .card-item h3{margin:0 0 6px 0;font-size:16px}
-  .tags span{background:#f3f4f6;border-radius:999px;padding:4px 8px;font-size:12px;margin-right:6px}
-  .legend-row{display:flex;gap:10px;align-items:center}
-  .seg{border:1px solid var(--line);border-radius:999px;overflow:hidden;display:inline-flex}
-  .seg button{padding:8px 12px;border:0;background:#fff;cursor:pointer}
-  .seg button.active{background:#111827;color:#fff}
-  .pill{padding:6px 10px;border-radius:999px;background:#f3f4f6;font-size:12px}
-  .pp-btn{margin-top:6px;padding:6px 10px;border-radius:10px;border:0;cursor:pointer}
-  .pp-row{display:flex;gap:6px;flex-wrap:wrap}
-  .pp-choose{background:#10b981;color:#fff}
-  .pp-view{background:#f59e0b;color:#111}
-  .pp-dismiss{background:#ef4444;color:#fff}
-  .pp-undismiss{background:#e5e7eb}
-  #empty, #empty-search{display:none;margin-top:8px}
-  #err{display:none;position:fixed;left:10px;right:10px;bottom:10px;background:#fee2e2;color:#7f1d1d;padding:10px;border-radius:8px;font-size:13px;z-index:9999}
-  .right{margin-left:auto}
-  .filters .sources label{display:flex;gap:6px;align-items:center;font-size:13px}
-  .toggle{display:flex;gap:8px;align-items:center}
-  .hr{height:1px;background:var(--line);margin:12px 0}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Garage Sales</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#111827">
+  <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <style>#map { height: 400px; }</style>
 </head>
-<body>
-<header>
-  <div class="wrap row" style="justify-content:space-between">
-    <h1>Garage Sales</h1>
-    <nav>
-      <button id="tab-search" class="active">Search</button>
-      <button id="tab-map">Map</button>
-      <button id="tab-planner">Planner</button>
-      <button id="tab-favs">Favourites</button>
-    </nav>
+<body class="bg-gray-100 text-gray-900">
+  <div class="max-w-4xl mx-auto p-4">
+    <h1 class="text-2xl font-bold text-center mb-4">Garage Sales</h1>
+
+    <!-- Filters -->
+    <div class="bg-white p-4 rounded shadow mb-4">
+      <label class="block mb-2 font-semibold">Date</label>
+      <input id="f-date" type="date" class="w-full p-2 border rounded mb-4">
+
+      <label class="block mb-2 font-semibold">Town, city or postcode</label>
+      <input id="f-location" type="text" placeholder="Toowoomba or 4350" class="w-full p-2 border rounded mb-4">
+
+      <label class="block mb-2 font-semibold">Item</label>
+      <input id="f-item" type="text" placeholder="bike, pram, tools" class="w-full p-2 border rounded mb-4">
+
+      <label class="block mb-2 font-semibold">Sources</label>
+      <div id="f-sources" class="grid grid-cols-2 gap-2 mb-4">
+        <label><input type="checkbox" value="craigslist" checked> Craigslist</label>
+        <label><input type="checkbox" value="newspapers" checked> Newspapers</label>
+        <label><input type="checkbox" value="community" checked> Community</label>
+        <label><input type="checkbox" value="facebook" checked> Facebook</label>
+        <label><input type="checkbox" value="gumtree" checked> Gumtree</label>
+        <label><input type="checkbox" value="marketplace" checked> Marketplace</label>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div class="bg-white p-4 rounded shadow">
+      <div class="flex justify-between items-center mb-2">
+        <div>
+          <span class="px-2 py-1 bg-blue-500 text-white text-xs rounded">new</span>
+          <span class="px-2 py-1 bg-green-500 text-white text-xs rounded">chosen</span>
+          <span class="px-2 py-1 bg-orange-500 text-white text-xs rounded">viewed</span>
+          <span class="px-2 py-1 bg-red-500 text-white text-xs rounded">dismissed</span>
+        </div>
+      </div>
+      <div id="map"></div>
+    </div>
   </div>
-</header>
 
-<main class="wrap">
+  <script>
+    const sales = [
+      { id: 1, lat: -27.5598, lng: 151.9507, address: "123 Margaret St", status: "new", tags: ["bike"], src: "craigslist" },
+      { id: 2, lat: -27.5530, lng: 151.9440, address: "45 Herries St", status: "new", tags: ["tools"], src: "gumtree" },
+      { id: 3, lat: -27.5635, lng: 151.9552, address: "78 Ruthven St", status: "new", tags: ["retro"], src: "facebook" },
+      { id: 4, lat: -27.5602, lng: 151.9601, address: "210 Bridge St", status: "new", tags: ["pram","baby"], src: "community" },
+      { id: 5, lat: -27.5650, lng: 151.9505, address: "66 Hume St", status: "new", tags: ["furniture"], src: "newspapers" },
+      { id: 6, lat: -27.5688, lng: 151.9450, address: "9 West St", status: "new", tags: ["camping"], src: "marketplace" },
+      { id: 7, lat: -27.5552, lng: 151.9402, address: "88 James St", status: "new", tags: ["garden"], src: "gumtree" },
+      { id: 8, lat: -27.5611, lng: 151.9520, address: "101 Campbell St", status: "new", tags: ["kitchen"], src: "facebook" },
+      { id: 9, lat: -27.5700, lng: 151.9600, address: "200 Anzac Ave", status: "new", tags: ["retro"], src: "community" },
+      { id: 10, lat: -27.5622, lng: 151.9470, address: "15 Hill St", status: "new", tags: ["bike","tools"], src: "newspapers" }
+    ];
 
-  <!-- FILTERS -->
-  <section class="card filters" id="filters">
-    <div class="row" style="justify-content:space-between;align-items:center">
-      <div class="legend-row">
-        <span class="dot" style="background:#2563eb"></span><span class="muted">new</span>
-        <span class="dot" style="background:#10b981"></span><span class="muted">chosen</span>
-        <span class="dot" style="background:#f59e0b"></span><span class="muted">viewed</span>
-        <span class="dot" style="background:#ef4444"></span><span class="muted">dismissed</span>
-      </div>
-      <button id="btn-reset" class="btn small">Reset statuses</button>
-    </div>
+    const colors = { new:"blue", chosen:"green", viewed:"orange", dismissed:"red" };
 
-    <div class="grid" style="margin-top:6px">
-      <div>
-        <label>Date</label>
-        <div class="row">
-          <div class="seg" role="tablist" aria-label="Day selector">
-            <button id="btn-yesterday" role="tab">Yesterday</button>
-            <button id="btn-today" role="tab" class="active">Today</button>
-            <button id="btn-tomorrow" role="tab">Tomorrow</button>
-          </div>
-          <input id="date-picker" type="date" aria-label="Pick a date"/>
-          <span id="date-label" class="pill"></span>
-        </div>
-      </div>
-      <div>
-        <label>Town, city or postcode</label>
-        <input type="text" id="f-location" placeholder="Toowoomba or 4350" value="Toowoomba" />
-      </div>
-      <div>
-        <label>Item</label>
-        <input type="text" id="f-item" placeholder="bike, pram, tools" />
-        <div class="row" style="margin-top:6px">
-          <span class="chip" data-quick="bike">bike</span>
-          <span class="chip" data-quick="tools">tools</span>
-          <span class="chip" data-quick="furniture">furniture</span>
-          <span class="chip" data-quick="baby">baby</span>
-          <span class="chip" data-quick="retro">retro</span>
-        </div>
-      </div>
-      <div>
-        <label>Sources</label>
-        <div class="sources row">
-          <label><input type="checkbox" class="src" value="craigslist" checked/> Craigslist</label>
-          <label><input type="checkbox" class="src" value="newspapers" checked/> Newspapers</label>
-          <label><input type="checkbox" class="src" value="community" checked/> Community noticeboards</label>
-          <label><input type="checkbox" class="src" value="facebook" checked/> Facebook</label>
-          <label><input type="checkbox" class="src" value="gumtree" checked/> Gumtree</label>
-          <label><input type="checkbox" class="src" value="marketplace" checked/> Marketplace</label>
-        </div>
-      </div>
-    </div>
-  </section>
+    const map = L.map('map').setView([-27.56,151.95],13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ attribution:'© OpenStreetMap'}).addTo(map);
 
-  <!-- SEARCH VIEW -->
-  <section id="search-view" class="card">
-    <div class="row" style="justify-content:space-between">
-      <h2 style="margin:0;font-size:16px">Results</h2>
-      <div class="toggle">
-        <label><input type="checkbox" id="t-show-filtered" checked/> Show all (filtered)</label>
-        <label><input type="checkbox" id="t-show-chosen" /> Show today’s chosen</label>
-      </div>
-    </div>
-    <div id="results" class="list" style="margin-top:8px"></div>
-    <div id="empty-search" class="muted">No results for these filters.</div>
-  </section>
+    let markers = [];
+    function render(){
+      markers.forEach(m => map.removeLayer(m));
+      markers = [];
 
-  <!-- MAP VIEW -->
-  <section id="map-view" class="card" style="display:none">
-    <div class="row" style="justify-content:space-between">
-      <div class="toggle">
-        <label><input type="checkbox" id="m-show-filtered" checked/> Show all (filtered)</label>
-        <label><input type="checkbox" id="m-show-chosen" /> Show today’s chosen</label>
-      </div>
-      <button class="btn small" id="btn-share">Invite friends (copy link)</button>
-    </div>
-    <div id="map" style="margin-top:8px"></div>
-    <div id="empty" class="muted">No sales for this date (demo covers 30–31 Aug 2025).</div>
-  </section>
+      const query = document.getElementById('f-item').value.toLowerCase();
+      const srcChecks = Array.from(document.querySelectorAll('#f-sources input:checked')).map(c=>c.value);
 
-  <!-- PLANNER VIEW -->
-  <section id="planner-view" class="card" style="display:none">
-    <div class="row" style="justify-content:space-between;align-items:center">
-      <h2 style="margin:0;font-size:16px">Planner – chosen for <span id="plan-date" class="pill"></span></h2>
-      <div class="row">
-        <button class="btn small" id="btn-opt">Optimize route</button>
-        <a class="btn small primary" id="btn-gmaps" target="_blank" rel="noreferrer">Open directions in Google Maps</a>
-      </div>
-    </div>
-    <div class="muted" id="plan-dist" style="margin-top:6px"></div>
-    <div class="hr"></div>
-    <div id="plan-list" class="list"></div>
-    <div class="muted" id="plan-empty" style="display:none">Pick some sales (Choose) to build a route.</div>
-  </section>
+      const filtered = sales.filter(s =>
+        (!query || s.tags.some(t=>t.includes(query))) &&
+        srcChecks.includes(s.src)
+      );
 
-  <!-- FAVOURITES VIEW -->
-  <section id="favs-view" class="card" style="display:none">
-    <h2 style="margin:0 0 8px 0;font-size:16px">Favourites</h2>
-    <div id="favs-list" class="list"></div>
-    <div class="muted" id="favs-empty" style="display:none">No favourites yet. Tap “Favourite” on a sale.</div>
-  </section>
+      filtered.forEach(s => {
+        const m = L.circleMarker([s.lat,s.lng], {
+          radius: 8, color: colors[s.status], fillColor: colors[s.status], fillOpacity: 0.9
+        }).addTo(map);
+        m.bindPopup(`<b>${s.address}</b><br>Tags: ${s.tags.join(", ")}<br>Status: ${s.status}`);
+        markers.push(m);
+      });
+    }
 
-</main>
+    document.getElementById('f-item').addEventListener('input', render);
+    document.querySelectorAll('#f-sources input').forEach(cb=>cb.addEventListener('change',render));
+    render();
+  </script>
 
-<div id="err"></div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
-<script>
-/* show any JS error instead of a blank page */
-window.addEventListener('error', (e)=>{
-  const box=document.getElementById('err');
-  box.style.display='block';
-  box.textContent='Error: '+(e.message||e.error);
-});
-
-/* timezone-safe dates */
-function localISODate(date=new Date()){
-  const tz=date.getTimezoneOffset()*60000;
-  return new Date(date.getTime()-tz).toISOString().slice(0,10);
-}
-function addDaysISO(iso, days){
-  const [y,m,d]=iso.split('-').map(Number);
-  const dt=new Date(Date.UTC(y,m-1,d));
-  dt.setUTCDate(dt.getUTCDate()+days);
-  return localISODate(new Date(dt));
-}
-function formatDateNice(iso){
-  return new Date(iso+"T00:00:00").toLocaleDateString(undefined,
-    {weekday:"short", day:"numeric", month:"short", year:"numeric"});
-}
-
-const todayISO=localISODate();
-let currentDateISO=todayISO;
-
-/* --- Demo dataset: Toowoomba x10 across 30–31 Aug 2025 --- */
-const D0="2025-08-30", D1="2025-08-31";
-const SALES=[
- {id:"T1",title:"Rangeville family clear-out (bikes, books)",addr:"12 South Street, Rangeville QLD 4350",lat:-27.580,lng:151.973,src:"community",tags:["bike","books"],open:[{date:D0,start:"08:00",end:"12:00"},{date:D1,start:"08:00",end:"12:00"}]},
- {id:"T2",title:"Centenary Heights downsizing – furniture & tools",addr:"5 Southland Street, Centenary Heights QLD 4350",lat:-27.594,lng:151.966,src:"newspapers",tags:["furniture","tools"],open:[{date:D0,start:"09:00",end:"13:00"},{date:D1,start:"09:00",end:"13:00"}]},
- {id:"T3",title:"Newtown shed sale – retro, records",addr:"40 Holberton Street, Newtown QLD 4350",lat:-27.558,lng:151.930,src:"craigslist",tags:["retro","records"],open:[{date:D0,start:"08:30",end:"12:30"}]},
- {id:"T4",title:"Harristown moving sale – baby gear",addr:"18 Campbell Street, Harristown QLD 4350",lat:-27.586,lng:151.929,src:"facebook",tags:["baby"],open:[{date:D1,start:"10:00",end:"14:00"}]},
- {id:"T5",title:"Kearneys Spring multi-house sale – camping",addr:"6 West Street, Kearneys Spring QLD 4350",lat:-27.603,lng:151.945,src:"gumtree",tags:["camping"],open:[{date:D0,start:"07:30",end:"11:30"}]},
- {id:"T6",title:"East Toowoomba – garden & kitchenware",addr:"98 Mary Street, East Toowoomba QLD 4350",lat:-27.563,lng:151.971,src:"marketplace",tags:["garden","kitchen"],open:[{date:D1,start:"08:00",end:"12:00"}]},
- {id:"T7",title:"North Toowoomba – bikes & games",addr:"15 Jones Street, North Toowoomba QLD 4350",lat:-27.541,lng:151.946,src:"facebook",tags:["bike","games"],open:[{date:D1,start:"09:30",end:"12:30"}]},
- {id:"T8",title:"Wilsonton – tools, mower, ladders",addr:"2 Erin Street, Wilsonton QLD 4350",lat:-27.540,lng:151.903,src:"gumtree",tags:["tools"],open:[{date:D0,start:"08:00",end:"12:00"}]},
- {id:"T9",title:"Mount Lofty – retro lamps & decor",addr:"7 Stuart Street, Mount Lofty QLD 4350",lat:-27.545,lng:151.963,src:"newspapers",tags:["retro","decor"],open:[{date:D1,start:"10:00",end:"14:00"}]},
- {id:"T10",title:"South Toowoomba – pram, kids clothes",addr:"21 Long Street, South Toowoomba QLD 4350",lat:-27.575,lng:151.948,src:"community",tags:["pram","kids"],open:[{date:D0,start:"08:30",end:"12:30"}]}
-];
-
-/* --- State (persisted) --- */
-const state={
-  selected:JSON.parse(localStorage.getItem("sel")||"[]"),
-  viewed:JSON.parse(localStorage.getItem("viewed")||"[]"),
-  dismissed:JSON.parse(localStorage.getItem("dismissed")||"[]"),
-  favs:JSON.parse(localStorage.getItem("favs")||"[]")
-};
-function save(){
-  localStorage.setItem("sel",JSON.stringify(state.selected));
-  localStorage.setItem("viewed",JSON.stringify(state.viewed));
-  localStorage.setItem("dismissed",JSON.stringify(state.dismissed));
-  localStorage.setItem("favs",JSON.stringify(state.favs));
-}
-function resetStatuses(){
-  state.selected=[]; state.viewed=[]; state.dismissed=[];
-  save(); renderAll();
-}
-document.getElementById('btn-reset').addEventListener('click', resetStatuses);
-
-function statusOf(id){
-  if(state.dismissed.includes(id)) return "dismissed";
-  if(state.selected.includes(id)) return "chosen";
-  if(state.viewed.includes(id))   return "viewed";
-  return "new";
-}
-function markViewed(id){ if(!state.viewed.includes(id)){ state.viewed.push(id); save(); renderAll(); } }
-function toggleChosen(id){
-  const i=state.selected.indexOf(id);
-  if(i>=0) state.selected.splice(i,1); else state.selected.push(id);
-  save(); renderAll();
-}
-function toggleDismiss(id){
-  const i=state.dismissed.indexOf(id);
-  if(i>=0) state.dismissed.splice(i,1); else state.dismissed.push(id);
-  save(); renderAll();
-}
-function toggleFav(id){
-  const i=state.favs.indexOf(id);
-  if(i>=0) state.favs.splice(i,1); else state.favs.push(id);
-  save(); renderAll();
-}
-
-/* --- Filters --- */
-const srcBoxes=[...document.querySelectorAll('.src')];
-const tShowFiltered=document.getElementById('t-show-filtered');
-const tShowChosen=document.getElementById('t-show-chosen');
-const mShowFiltered=document.getElementById('m-show-filtered');
-const mShowChosen=document.getElementById('m-show-chosen');
-const itemInput=document.getElementById('f-item');
-const locInput=document.getElementById('f-location');
-document.querySelectorAll('.chip').forEach(ch=>ch.addEventListener('click',()=>{ itemInput.value=ch.dataset.quick; renderAll(); }));
-
-/* date controls */
-function setActive(btnId){
-  ['btn-yesterday','btn-today','btn-tomorrow'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(!el) return;
-    el.classList.toggle('active', id===btnId);
-  });
-}
-document.getElementById('btn-yesterday').onclick=()=>{ currentDateISO=addDaysISO(todayISO,-1); setActive('btn-yesterday'); updateDateUI(); renderAll(); };
-document.getElementById('btn-today').onclick=()=>{ currentDateISO=todayISO; setActive('btn-today'); updateDateUI(); renderAll(); };
-document.getElementById('btn-tomorrow').onclick=()=>{ currentDateISO=addDaysISO(todayISO,1); setActive('btn-tomorrow'); updateDateUI(); renderAll(); };
-document.getElementById('date-picker').addEventListener('change',e=>{
-  if(!e.target.value) return;
-  currentDateISO=e.target.value;
-  const isY=currentDateISO===addDaysISO(todayISO,-1);
-  const isT=currentDateISO===todayISO;
-  const isN=currentDateISO===addDaysISO(todayISO,1);
-  setActive(isY?'btn-yesterday':isT?'btn-today':isN?'btn-tomorrow':'');
-  updateDateUI(); renderAll();
-});
-function updateDateUI(){
-  document.getElementById('date-label').textContent=formatDateNice(currentDateISO);
-  document.getElementById('plan-date').textContent=formatDateNice(currentDateISO);
-  document.getElementById('date-picker').value=currentDateISO;
-}
-
-/* --- Filtering logic --- */
-function isOpenOn(s, iso){ return s.open.some(o=>o.date===iso); }
-function passesSources(s){
-  const allowed=new Set(srcBoxes.filter(b=>b.checked).map(b=>b.value));
-  return allowed.has(s.src);
-}
-function passesItems(s, q){
-  if(!q) return true;
-  const T=(s.tags||[]).join(' ')+' '+s.title.toLowerCase();
-  return T.includes(q.toLowerCase());
-}
-function filteredSales(){
-  const q=itemInput.value.trim();
-  return SALES.filter(s=> isOpenOn(s,currentDateISO) && passesSources(s) && passesItems(s,q) );
-}
-
-/* --- Search results rendering --- */
-function saleCardHTML(s){
-  const time = (s.open.find(o=>o.date===currentDateISO)||{}); 
-  const st=statusOf(s.id);
-  const fav = state.favs.includes(s.id);
-  return `
-  <div class="card-item">
-    <h3>${s.title}</h3>
-    <div class="muted">${s.addr}</div>
-    <div class="muted">Open: ${time.start||"--:--"} – ${time.end||"--:--"}</div>
-    <div class="tags" style="margin-top:6px">${(s.tags||[]).map(t=>`<span>${t}</span>`).join('')}</div>
-    <div class="row" style="margin-top:8px">
-      <button class="btn small" data-act="choose" data-id="${s.id}">${state.selected.includes(s.id)?'Unchoose':'Choose'}</button>
-      <button class="btn small" data-act="view" data-id="${s.id}">View</button>
-      <button class="btn small" data-act="dismiss" data-id="${s.id}">${state.dismissed.includes(s.id)?'Undismiss':'Dismiss'}</button>
-      <button class="btn small ${fav?'primary':''}" data-act="fav" data-id="${s.id}">${fav?'Favourited':'Favourite'}</button>
-      <span class="pill right">status: ${st}</span>
-    </div>
-  </div>`;
-}
-
-function wireCardActions(container){
-  container.querySelectorAll('[data-act="choose"]').forEach(b=>b.onclick=()=>toggleChosen(b.dataset.id));
-  container.querySelectorAll('[data-act="view"]').forEach(b=>b.onclick=()=>markViewed(b.dataset.id));
-  container.querySelectorAll('[data-act="dismiss"]').forEach(b=>b.onclick=()=>toggleDismiss(b.dataset.id));
-  container.querySelectorAll('[data-act="fav"]').forEach(b=>b.onclick=()=>toggleFav(b.dataset.id));
-}
-
-/* --- Map --- */
-function pin(color){return L.icon({iconUrl:`data:image/svg+xml;utf8,${encodeURIComponent(
-`<svg xmlns='http://www.w3.org/2000/svg' width='28' height='40'>
-  <path d='M14 0C6.82 0 1 5.82 1 13c0 9.5 13 27 13 27s13-17.5 13-27C27 5.82 21.18 0 14 0z' fill='${color}'/>
-  <circle cx='14' cy='13' r='5' fill='white'/>
-</svg>`)}`,iconSize:[28,40],iconAnchor:[14,40],popupAnchor:[0,-36]});}
-const ICONS={new:pin("#2563eb"),chosen:pin("#10b981"),viewed:pin("#f59e0b"),dismissed:pin("#ef4444")};
-
-let map, pinsLayer; let markers={};
-function popupHTML(s){
-  const dismissed=state.dismissed.includes(s.id);
-  const gmaps="https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(s.addr);
-  return `
-    <strong>${s.title}</strong><br/>
-    <span class="muted">${s.addr}</span><br/>
-    <a class="muted" href="${gmaps}" target="_blank" rel="noreferrer">Open in Google Maps</a>
-    <div class="pp-row">
-      <button class="pp-btn pp-choose" data-act="choose" data-id="${s.id}">Choose</button>
-      <button class="pp-btn pp-view" data-act="view" data-id="${s.id}">View</button>
-      <button class="pp-btn ${dismissed?'pp-undismiss':'pp-dismiss'}" data-act="dismiss" data-id="${s.id}">
-        ${dismissed?'Undismiss':'Dismiss'}
-      </button>
-    </div>`;
-}
-function setMarkerIcon(id){ const m=markers[id]; if(m) m.setIcon(ICONS[statusOf(id)]); }
-
-function mountPins(){
-  if(!map){
-    map=L.map('map').setView([-27.56,151.95],12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap'}).addTo(map);
-  }
-  if(!pinsLayer){ pinsLayer=L.layerGroup().addTo(map); }
-  pinsLayer.clearLayers(); markers={};
-
-  const showFiltered = (document.getElementById('m-show-filtered').checked);
-  const showChosen   = (document.getElementById('m-show-chosen').checked);
-  const list = [
-    ...(showFiltered ? filteredSales() : []),
-    ...(showChosen   ? SALES.filter(s=>state.selected.includes(s.id) && isOpenOn(s,currentDateISO)) : [])
-  ];
-  // dedupe by id
-  const byId=new Map(list.map(s=>[s.id,s])); const toShow=[...byId.values()];
-
-  const pts=[];
-  toShow.forEach(s=>{
-    const st=statusOf(s.id);
-    const m=L.marker([s.lat,s.lng],{icon:ICONS[st]}).addTo(pinsLayer);
-    m.bindPopup(popupHTML(s));
-    m.on('popupopen',ev=>{
-      const node=ev.popup.getElement();
-      node.querySelector('[data-act="choose"]').onclick = ()=>{ toggleChosen(s.id);  m.setPopupContent(popupHTML(s)); };
-      node.querySelector('[data-act="view"]').onclick   = ()=>{ markViewed(s.id);    m.setPopupContent(popupHTML(s)); };
-      node.querySelector('[data-act="dismiss"]').onclick= ()=>{ toggleDismiss(s.id); m.setPopupContent(popupHTML(s)); };
-    });
-    markers[s.id]=m; pts.push([s.lat,s.lng]);
-  });
-
-  document.getElementById('empty').style.display = toShow.length? 'none':'block';
-  if(pts.length) { try{ map.fitBounds(pts,{padding:[30,30]}); }catch{} }
-}
-
-/* --- Planner / routing --- */
-function toRad(d){return d*Math.PI/180;}
-function haversine(a,b){
-  const R=6371; // km
-  const dLat=toRad(b.lat-a.lat), dLng=toRad(b.lng-a.lng);
-  const s=Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLng/2)**2;
-  return 2*R*Math.asin(Math.sqrt(s));
-}
-function optimizeRoute(points, start){
-  // greedy nearest neighbour
-  const remaining=[...points];
-  const route=[];
-  let curr={lat:start.lat,lng:start.lng};
-  let total=0;
-  while(remaining.length){
-    let best=0, bestDist=Infinity;
-    remaining.forEach((p,i)=>{ const d=haversine(curr,p); if(d<bestDist){best=i;bestDist=d;} });
-    total+=bestDist; curr=remaining[best];
-    route.push(remaining.splice(best,1)[0]);
-  }
-  return {route,total};
-}
-function gmapsDirectionsUrl(startStr, waypoints){
-  // Google Maps: https://www.google.com/maps/dir/?api=1&origin=...&destination=...&waypoints=w1|w2|...
-  if(waypoints.length===0) return "https://www.google.com/maps";
-  const origin=encodeURIComponent(startStr);
-  const dest=encodeURIComponent(waypoints[waypoints.length-1].addr);
-  const wp=waypoints.slice(0,Math.min(8,waypoints.length-1)) // limit waypoints (8 + dest ≈ 10 stops)
-                    .map(p=>encodeURIComponent(p.addr)).join('|');
-  let url=`https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}`;
-  if(wp) url+=`&waypoints=${wp}`;
-  return url;
-}
-function renderPlanner(){
-  const chosen=SALES.filter(s=> state.selected.includes(s.id) && isOpenOn(s,currentDateISO));
-  const planList=document.getElementById('plan-list');
-  const planEmpty=document.getElementById('plan-empty');
-  const planDist=document.getElementById('plan-dist');
-  const btnG=document.getElementById('btn-gmaps');
-
-  if(!chosen.length){
-    planList.innerHTML=""; planEmpty.style.display="block"; planDist.textContent=""; btnG.href="#";
-    return;
-  }
-  planEmpty.style.display="none";
-  // starting point: rough geocenter by location name (we’ll use Toowoomba’s centroid if it matches)
-  const startCenter = {lat:-27.56,lng:151.95};
-  const {route,total}=optimizeRoute(chosen.map(s=>({lat:s.lat,lng:s.lng,id:s.id})), startCenter);
-  const sequence=route.map(r=> SALES.find(s=>s.id===r.id) );
-
-  planList.innerHTML = sequence.map(s=>{
-    const o=s.open.find(x=>x.date===currentDateISO)||{};
-    return `<div class="card-item">
-      <h3>${s.title}</h3>
-      <div class="muted">${s.addr}</div>
-      <div class="muted">Open: ${o.start||"--:--"} – ${o.end||"--:--"}</div>
-      <div class="row" style="margin-top:8px">
-        <button class="btn small" data-act="choose" data-id="${s.id}">Unchoose</button>
-        <button class="btn small" data-act="fav" data-id="${s.id}">${state.favs.includes(s.id)?'Favourited':'Favourite'}</button>
-      </div>
-    </div>`;
-  }).join('');
-  wireCardActions(planList);
-  planDist.textContent=`Estimated route distance: ${total.toFixed(1)} km`;
-  btnG.href = gmapsDirectionsUrl(locInput.value || "Toowoomba QLD", sequence);
-}
-
-/* --- Favourites --- */
-function renderFavs(){
-  const list=document.getElementById('favs-list');
-  const empty=document.getElementById('favs-empty');
-  const favSales=SALES.filter(s=> state.favs.includes(s.id));
-  empty.style.display = favSales.length? 'none':'block';
-  list.innerHTML = favSales.map(s=>{
-    return `<div class="card-item">
-      <h3>${s.title}</h3>
-      <div class="muted">${s.addr}</div>
-      <div class="row" style="margin-top:8px">
-        <button class="btn small" data-act="fav" data-id="${s.id}">Remove favourite</button>
-        <button class="btn small" data-act="choose" data-id="${s.id}">${state.selected.includes(s.id)?'Unchoose':'Choose'}</button>
-      </div>
-    </div>`;
-  }).join('');
-  wireCardActions(list);
-}
-
-/* --- Results & wiring --- */
-function renderResults(){
-  const rs=document.getElementById('results');
-  const list=filteredSales();
-  document.getElementById('empty-search').style.display = list.length? 'none':'block';
-  rs.innerHTML = list.map(s=> saleCardHTML(s)).join('');
-  wireCardActions(rs);
-}
-function renderMap(){ mountPins(); }
-
-/* --- Invite/share link --- */
-function applyShareFromURL(){
-  const u=new URL(location.href);
-  const d=u.searchParams.get('date'); const sel=u.searchParams.get('sel');
-  if(d){ currentDateISO=d; updateDateUI(); }
-  if(sel){ state.selected=[...new Set(sel.split(',').filter(id=>SALES.some(s=>s.id===id)) )]; save(); }
-}
-function copyShareLink(){
-  const params=new URLSearchParams();
-  params.set('date', currentDateISO);
-  if(state.selected.length) params.set('sel', state.selected.join(','));
-  const url=`${location.origin}${location.pathname}?${params.toString()}`;
-  navigator.clipboard.writeText(url).then(()=>alert('Share link copied!'));
-}
-document.getElementById('btn-share').onclick=copyShareLink;
-
-/* --- Tab switching --- */
-function show(id){
-  document.getElementById('search-view').style.display = (id==='search')?'block':'none';
-  document.getElementById('map-view').style.display    = (id==='map')?'block':'none';
-  document.getElementById('planner-view').style.display= (id==='planner')?'block':'none';
-  document.getElementById('favs-view').style.display   = (id==='favs')?'block':'none';
-  document.getElementById('tab-search').classList.toggle('active', id==='search');
-  document.getElementById('tab-map').classList.toggle('active', id==='map');
-  document.getElementById('tab-planner').classList.toggle('active', id==='planner');
-  document.getElementById('tab-favs').classList.toggle('active', id==='favs');
-  if(id==='map') renderMap();
-  if(id==='planner') renderPlanner();
-  if(id==='favs') renderFavs();
-}
-document.getElementById('tab-search').onclick=()=>show('search');
-document.getElementById('tab-map').onclick=()=>show('map');
-document.getElementById('tab-planner').onclick=()=>show('planner');
-document.getElementById('tab-favs').onclick=()=>show('favs');
-
-/* --- Filter toggles -> refresh --- */
-[tShowFiltered,tShowChosen,mShowFiltered,mShowChosen].forEach(cb=>cb.addEventListener('change',renderAll));
-srcBoxes.forEach(b=>b.addEventListener('change',renderAll));
-itemInput.addEventListener('input',()=>{ renderAll(); });
-
-/* master render */
-function renderAll(){
-  renderResults();
-  if(document.getElementById('map-view').style.display!=='none') renderMap();
-  if(document.getElementById('planner-view').style.display!=='none') renderPlanner();
-  if(document.getElementById('favs-view').style.display!=='none') renderFavs();
-}
-
-/* init */
-applyShareFromURL();
-updateDateUI();
-renderAll();
-</script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js');
+    }
+  </script>
 </body>
 </html>
