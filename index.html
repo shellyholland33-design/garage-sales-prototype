@@ -5,301 +5,76 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Garage Sales</title>
 
-  <!-- PWA -->
-  <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#111827" />
-  <!-- iOS install support -->
-  <link rel="apple-touch-icon" href="icon-192x192.png" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <!-- PWA setup -->
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#111827">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-  <!-- Tailwind (CDN) -->
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <style>
-    html, body { height: 100%; }
-    #map { height: 420px; }
-    .pill { padding: 0.15rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; color: #fff; }
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; }
+    #map { height: 500px; width: 100%; margin-top: 1rem; }
   </style>
 </head>
-<body class="bg-gray-100 text-gray-900">
-  <div class="max-w-4xl mx-auto p-4">
-    <header class="mb-4 flex items-center justify-between">
-      <h1 class="text-2xl font-bold">Garage Sales</h1>
-      <button id="installBtn" class="text-sm px-3 py-1 rounded bg-indigo-600 text-white hidden">Install app</button>
-    </header>
+<body>
+  <h1 class="text-2xl font-bold mb-4">Garage Sales</h1>
 
-    <!-- Filters -->
-    <section class="bg-white p-4 rounded-xl shadow mb-4">
-      <div class="grid md:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-semibold mb-1">Date</label>
-          <input id="f-date" type="date" class="w-full p-2 border rounded" />
-        </div>
-        <div>
-          <label class="block text-sm font-semibold mb-1">Town, city or postcode</label>
-          <input id="f-location" type="text" placeholder="Toowoomba or 4350" class="w-full p-2 border rounded" />
-        </div>
-      </div>
-      <div class="mt-4">
-        <label class="block text-sm font-semibold mb-1">Item</label>
-        <input id="f-item" type="text" placeholder="bike, pram, tools" class="w-full p-2 border rounded" />
-        <div class="flex gap-2 mt-2 text-sm">
-          <button data-chip="bike" class="chip px-2 py-1 bg-gray-200 rounded">bike</button>
-          <button data-chip="tools" class="chip px-2 py-1 bg-gray-200 rounded">tools</button>
-          <button data-chip="furniture" class="chip px-2 py-1 bg-gray-200 rounded">furniture</button>
-          <button data-chip="baby" class="chip px-2 py-1 bg-gray-200 rounded">baby</button>
-          <button data-chip="retro" class="chip px-2 py-1 bg-gray-200 rounded">retro</button>
-        </div>
-      </div>
-      <div class="mt-4">
-        <label class="block text-sm font-semibold mb-1">Sources</label>
-        <div id="f-sources" class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
-          <label class="flex items-center gap-2"><input type="checkbox" value="craigslist" checked/> Craigslist</label>
-          <label class="flex items-center gap-2"><input type="checkbox" value="newspapers" checked/> Newspapers</label>
-          <label class="flex items-center gap-2"><input type="checkbox" value="community" checked/> Community</label>
-          <label class="flex items-center gap-2"><input type="checkbox" value="facebook" checked/> Facebook</label>
-          <label class="flex items-center gap-2"><input type="checkbox" value="gumtree" checked/> Gumtree</label>
-          <label class="flex items-center gap-2"><input type="checkbox" value="marketplace" checked/> Marketplace</label>
-        </div>
-      </div>
-      <div class="mt-4 flex items-center justify-between gap-3">
-        <div class="flex items-center gap-2 text-xs sm:text-sm">
-          <span class="pill bg-blue-500">new</span>
-          <span class="pill bg-green-600">visit</span>
-          <span class="pill bg-orange-500">viewed</span>
-          <span class="pill bg-red-600">dismissed</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <label class="text-sm flex items-center gap-2">
-            <input id="onlyVisitToday" type="checkbox" />
-            Show Visit only (today)
-          </label>
-          <button id="resetStatuses" class="text-sm px-3 py-1 rounded bg-gray-200">Reset statuses</button>
-        </div>
-      </div>
-    </section>
+  <form>
+    <label>Date</label>
+    <input type="date" value="2025-08-31"><br><br>
 
-    <!-- Map -->
-    <section class="bg-white p-4 rounded-xl shadow">
-      <div id="map"></div>
-      <p class="mt-2 text-xs text-gray-500">Tip: tap a pin then use <b>Visit</b>, <b>Viewed</b>, <b>Dismiss</b>, or <b>New</b>.</p>
-    </section>
+    <label>Town, city or postcode</label>
+    <input type="text" value="Toowoomba"><br><br>
 
-    <!-- Results list -->
-    <section class="bg-white p-4 rounded-xl shadow mt-4">
-      <h2 class="font-semibold mb-2">Results</h2>
-      <ul id="results" class="space-y-2"></ul>
-    </section>
-  </div>
+    <label>Item</label>
+    <input type="text" placeholder="bike, pram, tools"><br><br>
+
+    <div>
+      <label>Sources</label><br>
+      <input type="checkbox" checked> Craigslist
+      <input type="checkbox" checked> Facebook
+      <input type="checkbox" checked> Newspapers
+      <input type="checkbox" checked> Community
+      <input type="checkbox" checked> Gumtree
+      <input type="checkbox" checked> Marketplace
+    </div>
+  </form>
+
+  <div id="map"></div>
 
   <script>
-    // ---------- Sample data (10 Toowoomba sales) ----------
-    const DAY = "2025-08-31"; // ISO date used for demo filtering
-    const sales = [
-      { id:1,  lat:-27.5598, lng:151.9507, address:"123 Margaret St, Toowoomba QLD", time:"08:00–12:00", date:DAY, src:"craigslist",  tags:["bike","tools"] },
-      { id:2,  lat:-27.5530, lng:151.9440, address:"45 Herries St, Toowoomba QLD",   time:"07:30–11:30", date:DAY, src:"gumtree",     tags:["tools","garden"] },
-      { id:3,  lat:-27.5635, lng:151.9552, address:"78 Ruthven St, Toowoomba QLD",   time:"09:00–13:00", date:DAY, src:"facebook",    tags:["retro","furniture"] },
-      { id:4,  lat:-27.5602, lng:151.9601, address:"210 Bridge St, Toowoomba QLD",   time:"08:30–12:30", date:DAY, src:"community",   tags:["baby","pram"] },
-      { id:5,  lat:-27.5650, lng:151.9505, address:"66 Hume St, Toowoomba QLD",      time:"08:00–10:00", date:DAY, src:"newspapers",  tags:["furniture"] },
-      { id:6,  lat:-27.5688, lng:151.9450, address:"9 West St, Toowoomba QLD",       time:"10:00–14:00", date:DAY, src:"marketplace", tags:["camping","tools"] },
-      { id:7,  lat:-27.5552, lng:151.9402, address:"88 James St, Toowoomba QLD",     time:"08:00–12:00", date:DAY, src:"gumtree",     tags:["garden","retro"] },
-      { id:8,  lat:-27.5611, lng:151.9520, address:"101 Campbell St, Toowoomba QLD", time:"07:00–10:30", date:DAY, src:"facebook",    tags:["kitchen","baby"] },
-      { id:9,  lat:-27.5700, lng:151.9600, address:"200 Anzac Ave, Toowoomba QLD",   time:"09:30–13:00", date:DAY, src:"community",   tags:["retro","collectables"] },
-      { id:10, lat:-27.5622, lng:151.9470, address:"15 Hill St, Toowoomba QLD",      time:"08:15–11:45", date:DAY, src:"newspapers",  tags:["bike","tools"] },
-    ];
-
-    // ---------- Status persistence ----------
-    const STATUS_KEY = "gs_status_v1";
-    const statuses = JSON.parse(localStorage.getItem(STATUS_KEY) || "{}"); // {id: "new|visit|viewed|dismissed"}
-
-    function setStatus(id, s) {
-      statuses[id] = s;
-      localStorage.setItem(STATUS_KEY, JSON.stringify(statuses));
-      render();
-    }
-    function resetStatuses() {
-      Object.keys(statuses).forEach(k => delete statuses[k]);
-      localStorage.setItem(STATUS_KEY, JSON.stringify(statuses));
-      render();
-    }
-
-    // ---------- Filter state ----------
-    const fDate      = document.getElementById('f-date');
-    const fLocation  = document.getElementById('f-location');
-    const fItem      = document.getElementById('f-item');
-    const fSources   = document.getElementById('f-sources');
-    const onlyVisit  = document.getElementById('onlyVisitToday');
-
-    // Initialise date to today (local)
-    const todayISO = new Date().toISOString().slice(0,10);
-    fDate.value = todayISO; // user device timezone
-    fLocation.value = "Toowoomba";
-
-    // Chip helpers
-    document.querySelectorAll('.chip').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const word = btn.dataset.chip;
-        const parts = fItem.value.split(',').map(s => s.trim()).filter(Boolean);
-        if (!parts.includes(word)) parts.push(word);
-        fItem.value = parts.join(', ');
-        render();
-      });
-    });
-
-    // ---------- Map ----------
-    const colorMap = { new:"#3b82f6", visit:"#16a34a", viewed:"#f97316", dismissed:"#dc2626" };
+    // Map
     const map = L.map('map').setView([-27.56, 151.95], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
 
-    let markers = [];
-    let routeLine;
-
-    function clearMap() {
-      markers.forEach(m => map.removeLayer(m));
-      markers = [];
-      if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
-    }
-
-    // ---------- Filtering + Rendering ----------
-    function filterSales() {
-      const words = fItem.value.toLowerCase().split(/[, ]+/).map(s => s.trim()).filter(Boolean);
-      const srcChecked = Array.from(fSources.querySelectorAll('input:checked')).map(cb => cb.value);
-      const dateSel = fDate.value;
-
-      return sales.filter(s => {
-        if (dateSel && s.date !== dateSel) return false;
-        if (srcChecked.length && !srcChecked.includes(s.src)) return false;
-        if (words.length && !words.some(w => s.tags.some(t => t.toLowerCase().includes(w)))) return false;
-        if (onlyVisit.checked && (statuses[s.id] || "new") !== "visit") return false;
-        // Location text is informational in this prototype (all are Toowoomba).
-        return true;
-      });
-    }
-
-    function badge(status) {
-      const map = { new:"bg-blue-500", visit:"bg-green-600", viewed:"bg-orange-500", dismissed:"bg-red-600" };
-      return `<span class="pill ${map[status] || map.new}">${status}</span>`;
-    }
-
-    function renderList(list) {
-      const ul = document.getElementById('results');
-      ul.innerHTML = "";
-      if (!list.length) {
-        ul.innerHTML = `<li class="text-sm text-gray-500">No results for your filters.</li>`;
-        return;
-      }
-      list.forEach(s => {
-        const st = statuses[s.id] || "new";
-        const li = document.createElement('li');
-        li.className = "p-3 border rounded flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2";
-        li.innerHTML = `
-          <div>
-            <div class="font-medium">${s.address}</div>
-            <div class="text-xs text-gray-500">Time: ${s.time} • Source: ${s.src} • Tags: ${s.tags.join(', ')}</div>
-          </div>
-          <div class="flex items-center gap-2">
-            ${badge(st)}
-            <button class="px-2 py-1 text-xs rounded bg-green-100 border border-green-600 text-green-700" data-act="visit" data-id="${s.id}">Visit</button>
-            <button class="px-2 py-1 text-xs rounded bg-orange-100 border border-orange-500 text-orange-700" data-act="viewed" data-id="${s.id}">Viewed</button>
-            <button class="px-2 py-1 text-xs rounded bg-red-100 border border-red-500 text-red-700" data-act="dismissed" data-id="${s.id}">Dismiss</button>
-            <button class="px-2 py-1 text-xs rounded bg-gray-100 border" data-act="new" data-id="${s.id}">New</button>
-          </div>
-        `;
-        ul.appendChild(li);
-      });
-
-      // Wire buttons
-      ul.querySelectorAll('button[data-act]').forEach(btn => {
-        btn.addEventListener('click', () => setStatus(+btn.dataset.id, btn.dataset.act));
-      });
-    }
-
-    function renderMap(list) {
-      clearMap();
-      // Add markers
-      list.forEach(s => {
-        const st = statuses[s.id] || "new";
-        const m = L.circleMarker([s.lat, s.lng], {
-          radius: 8, color: colorMap[st], fillColor: colorMap[st], fillOpacity: 0.95, weight: 2
-        }).addTo(map);
-        m.bindPopup(`
-          <div class="text-sm">
-            <div class="font-medium mb-1">${s.address}</div>
-            <div class="text-xs text-gray-600 mb-2">Time: ${s.time} • Source: ${s.src} • Tags: ${s.tags.join(", ")}</div>
-            <div class="flex gap-2 flex-wrap">
-              <button class="px-2 py-1 text-xs rounded bg-green-100 border border-green-600 text-green-700" data-act="visit" data-id="${s.id}">Visit</button>
-              <button class="px-2 py-1 text-xs rounded bg-orange-100 border border-orange-500 text-orange-700" data-act="viewed" data-id="${s.id}">Viewed</button>
-              <button class="px-2 py-1 text-xs rounded bg-red-100 border border-red-500 text-red-700" data-act="dismissed" data-id="${s.id}">Dismiss</button>
-              <button class="px-2 py-1 text-xs rounded bg-gray-100 border" data-act="new" data-id="${s.id}">New</button>
-            </div>
-          </div>
-        `);
-        m.on('popupopen', (e) => {
-          const popup = e.popup._contentNode;
-          popup.querySelectorAll('button[data-act]').forEach(btn => {
-            btn.addEventListener('click', () => setStatus(+btn.dataset.id, btn.dataset.act));
-          });
-        });
-        markers.push(m);
-      });
-
-      // Route for today's "Visit"
-      if (onlyVisit.checked) {
-        const todaysVisits = list
-          .filter(s => (statuses[s.id] || "new") === "visit")
-          .slice()
-          .sort((a,b) => a.time.localeCompare(b.time));
-        if (todaysVisits.length > 1) {
-          const latlngs = todaysVisits.map(s => [s.lat, s.lng]);
-          routeLine = L.polyline(latlngs, { color: '#111827', weight: 3, opacity: 0.8, dashArray: '6,6' }).addTo(map);
-          map.fitBounds(routeLine.getBounds(), { padding:[30,30] });
-        } else if (list.length) {
-          map.fitBounds(L.featureGroup(markers).getBounds(), { padding:[30,30] });
-        }
-      } else if (markers.length) {
-        map.fitBounds(L.featureGroup(markers).getBounds(), { padding:[30,30] });
-      }
-    }
-
-    function render() {
-      const filtered = filterSales();
-      renderMap(filtered);
-      renderList(filtered);
-    }
-
-    // Events
-    document.getElementById('resetStatuses').addEventListener('click', resetStatuses);
-    [fDate, fLocation, fItem, onlyVisit].forEach(el => el.addEventListener('input', render));
-    fSources.querySelectorAll('input').forEach(cb => cb.addEventListener('change', render));
-
-    // Initial render
-    render();
-
-    // ---------- PWA install prompt button (optional UX) ----------
-    let deferredPrompt;
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      const btn = document.getElementById('installBtn');
-      btn.classList.remove('hidden');
-      btn.addEventListener('click', async () => {
-        btn.disabled = true;
-        if (deferredPrompt) {
-          deferredPrompt.prompt();
-          await deferredPrompt.userChoice;
-          deferredPrompt = null;
-        }
-      });
+    // Example markers
+    const markers = [
+      [-27.56, 151.95],
+      [-27.55, 151.96],
+      [-27.57, 151.94]
+    ];
+    markers.forEach(([lat, lon]) => {
+      L.marker([lat, lon]).addTo(map);
     });
+  </script>
 
-    // ---------- Service worker ----------
+  <!-- Service worker registration -->
+  <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(console.error);
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js', { scope: './' });
+      });
     }
   </script>
 </body>
