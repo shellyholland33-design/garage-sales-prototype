@@ -1,34 +1,32 @@
-const CACHE_VERSION = "v1.0.1";
-const APP_SHELL = [
+const CACHE_NAME = "garage_sales_v1";
+const ASSETS = [
   "./",
   "./index.html",
+  "./styles.css",
+  "./app.js",
+  "./data.js",
   "./manifest.json",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png"
+  "./icons/icon_192.png",
+  "./icons/icon_512.png"
 ];
 
-self.addEventListener("install", event => {
+self.addEventListener("install", e => {
+  e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
   self.skipWaiting();
-  event.waitUntil(caches.open(CACHE_VERSION).then(c => c.addAll(APP_SHELL)));
 });
 
-self.addEventListener("activate", event => {
-  event.waitUntil(
+self.addEventListener("activate", e => {
+  e.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_VERSION).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    )
   );
+  self.clients.claim();
 });
 
-self.addEventListener("fetch", event => {
-  event.respondWith(
-    caches.match(event.request).then(cached => {
-      const fetchPromise = fetch(event.request).then(networkRes => {
-        const copy = networkRes.clone();
-        caches.open(CACHE_VERSION).then(c => c.put(event.request, copy)).catch(() => {});
-        return networkRes;
-      }).catch(() => cached);
-      return cached || fetchPromise;
-    })
+self.addEventListener("fetch", e => {
+  const req = e.request;
+  e.respondWith(
+    caches.match(req).then(cached => cached || fetch(req))
   );
 });
