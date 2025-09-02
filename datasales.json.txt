@@ -1,0 +1,41 @@
+[
+  {
+    "id": 1,
+    "title": "Big clear out",
+    "date": "2025-09-06",
+    "startTime": "08:00",
+    "endTime": "13:00",
+    "address": "12 Warrego Street",
+    "suburb": "Cunnamulla",
+    "postcode": "4490",
+    "lat": -28.0668,
+    "lng": 145.6847,
+    "description": "Camp gear, garden tools, kids clothes."
+  },
+  {
+    "id": 2,
+    "title": "Neighbourhood sale",
+    "date": "2025-09-07",
+    "startTime": "09:00",
+    "endTime": "12:00",
+    "address": "5 Lagoon Drive",
+    "suburb": "Wyandra",
+    "postcode": "4489",
+    "lat": -27.9166,
+    "lng": 145.8166,
+    "description": "Furniture and books, bring a bag."
+  },
+  {
+    "id": 3,
+    "title": "Tools and parts",
+    "date": "2025-09-13",
+    "startTime": "07:30",
+    "endTime": "11:30",
+    "address": "23 Perry Street",
+    "suburb": "Toowoomba",
+    "postcode": "4350",
+    "lat": -27.5598,
+    "lng": 151.9507,
+    "description": "Auto bits, power tools, paint."
+  }
+]

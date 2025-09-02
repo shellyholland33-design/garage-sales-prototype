@@ -1,0 +1,317 @@
+// Simple data loader, renderer, and filter logic
+
+const els = {
+  q: document.getElementById('q'),
+  suburb: document.getElementById('suburb'),
+  postcode: document.getElementById('postcode'),
+  dateFrom: document.getElementById('dateFrom'),
+  dateTo: document.getElementById('dateTo'),
+  maxKm: document.getElementById('maxKm'),
+  sortBy: document.getElementById('sortBy'),
+  dows: Array.from(document.querySelectorAll('.dow')),
+  apply: document.getElementById('apply'),
+  reset: document.getElementById('reset'),
+  hideViewed: document.getElementById('hideViewed'),
+  hideDismissed: document.getElementById('hideDismissed'),
+  list: document.getElementById('list'),
+  count: document.getElementById('count'),
+  geoStatus: document.getElementById('geoStatus'),
+  installTip: document.getElementById('installTip'),
+};
+
+let all = [];
+let userPos = null;
+let hasAskedGeo = false;
+
+const STORAGE_KEYS = {
+  viewed: 'gs_viewed_ids',
+  dismissed: 'gs_dismissed_ids',
+  addedAt: 'gs_added_at', // store first seen timestamp per id
+};
+
+// load viewed and dismissed from storage
+const viewedSet = new Set(JSON.parse(localStorage.getItem(STORAGE_KEYS.viewed) || '[]'));
+const dismissedSet = new Set(JSON.parse(localStorage.getItem(STORAGE_KEYS.dismissed) || '[]'));
+const addedAt = new Map(Object.entries(JSON.parse(localStorage.getItem(STORAGE_KEYS.addedAt) || '{}')));
+
+// Haversine distance in km
+function kmBetween(lat1, lon1, lat2, lon2) {
+  const toRad = d => d * Math.PI / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function dayOfWeek(dateStr) {
+  return new Date(dateStr).getDay(); // 0 Sun..6 Sat
+}
+
+// fetch data
+async function loadData() {
+  const res = await fetch('data/sales.json', { cache: 'no-store' });
+  const items = await res.json();
+
+  // Normalise and stamp first seen time
+  all = items.map(it => {
+    const id = String(it.id);
+    if (!addedAt.has(id)) {
+      addedAt.set(id, Date.now());
+    }
+    return {
+      ...it,
+      id,
+      title: it.title || 'Garage sale',
+      suburb: it.suburb || '',
+      postcode: String(it.postcode || '').trim(),
+      address: it.address || '',
+      date: it.date, // ISO yyyy-mm-dd
+      startTime: it.startTime || '',
+      endTime: it.endTime || '',
+      lat: typeof it.lat === 'number' ? it.lat : null,
+      lng: typeof it.lng === 'number' ? it.lng : null,
+      description: it.description || '',
+    };
+  });
+
+  // persist first seen timestamps
+  localStorage.setItem(STORAGE_KEYS.addedAt, JSON.stringify(Object.fromEntries(addedAt)));
+
+  render();
+}
+
+function getFilters() {
+  const q = els.q.value.trim().toLowerCase();
+  const suburb = els.suburb.value.trim().toLowerCase();
+  const postcodeTxt = els.postcode.value.trim();
+  const postcodes = postcodeTxt
+    ? postcodeTxt.split(',').map(s => s.trim()).filter(Boolean)
+    : [];
+  const dateFrom = els.dateFrom.value ? new Date(els.dateFrom.value) : null;
+  const dateTo = els.dateTo.value ? new Date(els.dateTo.value) : null;
+  const maxKm = Number(els.maxKm.value);
+  const dowVals = els.dows.filter(cb => cb.checked).map(cb => Number(cb.value));
+  const sortBy = els.sortBy.value;
+  const hideViewed = els.hideViewed.checked;
+  const hideDismissed = els.hideDismissed.checked;
+
+  return { q, suburb, postcodes, dateFrom, dateTo, maxKm, dowVals, sortBy, hideViewed, hideDismissed };
+}
+
+function withinDate(d, from, to) {
+  if (!from && !to) return true;
+  const dt = new Date(d);
+  if (from && dt < new Date(from.toDateString())) return false;
+  if (to) {
+    const end = new Date(to.toDateString());
+    end.setDate(end.getDate() + 1); // inclusive
+    if (dt >= end) return false;
+  }
+  return true;
+}
+
+function matchAnyPostcode(val, list) {
+  if (!list.length) return true;
+  return list.includes(String(val));
+}
+
+function render() {
+  const f = getFilters();
+
+  // request location once if distance filter chosen
+  if (!hasAskedGeo && !userPos && f.sortBy === 'distance' || (f.maxKm && !userPos)) {
+    askForGeo();
+  }
+
+  let rows = all.slice();
+
+  rows = rows.filter(it => {
+    if (f.hideDismissed && dismissedSet.has(it.id)) return false;
+    if (f.hideViewed && viewedSet.has(it.id)) return false;
+
+    // text search across title, address, suburb, description
+    if (f.q) {
+      const hay = `${it.title} ${it.address} ${it.suburb} ${it.description}`.toLowerCase();
+      if (!hay.includes(f.q)) return false;
+    }
+
+    if (f.suburb && !it.suburb.toLowerCase().includes(f.suburb)) return false;
+    if (!matchAnyPostcode(it.postcode, f.postcodes)) return false;
+
+    // date window
+    if (it.date && !withinDate(it.date, f.dateFrom, f.dateTo)) return false;
+
+    // day filter
+    if (f.dowVals.length) {
+      const dow = dayOfWeek(it.date);
+      if (!f.dowVals.includes(dow)) return false;
+    }
+
+    // distance cap
+    if (f.maxKm && userPos && it.lat != null && it.lng != null) {
+      const km = kmBetween(userPos.lat, userPos.lng, it.lat, it.lng);
+      if (km > f.maxKm) return false;
+    }
+
+    return true;
+  });
+
+  // enrich with distance and addedAt
+  rows = rows.map(it => {
+    let km = null;
+    if (userPos && it.lat != null && it.lng != null) {
+      km = kmBetween(userPos.lat, userPos.lng, it.lat, it.lng);
+    }
+    return { ...it, km, firstSeen: Number(addedAt.get(it.id) || 0) };
+  });
+
+  // sort
+  rows.sort((a, b) => {
+    switch (f.sortBy) {
+      case 'dateDesc':
+        return new Date(b.date) - new Date(a.date);
+      case 'distance':
+        return (a.km ?? Number.POSITIVE_INFINITY) - (b.km ?? Number.POSITIVE_INFINITY);
+      case 'newest':
+        return b.firstSeen - a.firstSeen;
+      case 'dateAsc':
+      default:
+        return new Date(a.date) - new Date(b.date);
+    }
+  });
+
+  els.list.innerHTML = '';
+  for (const it of rows) {
+    const card = buildCard(it);
+    els.list.appendChild(card);
+  }
+  els.count.textContent = `${rows.length} result${rows.length === 1 ? '' : 's'}`;
+}
+
+function buildCard(it) {
+  const tpl = document.getElementById('cardTpl');
+  const node = tpl.content.firstElementChild.cloneNode(true);
+
+  node.querySelector('.t').textContent = it.title;
+  node.querySelector('.when').textContent = formatWhen(it);
+  node.querySelector('.where').textContent = it.address
+    ? `${it.address}, ${it.suburb} ${it.postcode}`
+    : `${it.suburb} ${it.postcode}`;
+
+  const distEl = node.querySelector('.distance');
+  if (it.km != null) {
+    distEl.textContent = `${it.km.toFixed(1)} km`;
+  } else {
+    distEl.textContent = '';
+  }
+
+  node.querySelector('.desc').textContent = it.description || '';
+
+  // state classes
+  if (viewedSet.has(it.id)) node.classList.add('viewed');
+  if (dismissedSet.has(it.id)) node.classList.add('dismissed');
+
+  // Visit link
+  const visit = node.querySelector('.visit');
+  const mapHref = buildMapUrl(it);
+  visit.href = mapHref;
+
+  // Viewed button
+  const viewedBtn = node.querySelector('.viewedBtn');
+  viewedBtn.addEventListener('click', () => {
+    if (viewedSet.has(it.id)) {
+      viewedSet.delete(it.id);
+      node.classList.remove('viewed');
+    } else {
+      viewedSet.add(it.id);
+      node.classList.add('viewed');
+    }
+    localStorage.setItem(STORAGE_KEYS.viewed, JSON.stringify([...viewedSet]));
+  });
+
+  // Dismiss button
+  const dismissBtn = node.querySelector('.dismissBtn');
+  dismissBtn.addEventListener('click', () => {
+    if (dismissedSet.has(it.id)) {
+      dismissedSet.delete(it.id);
+      node.classList.remove('dismissed');
+    } else {
+      dismissedSet.add(it.id);
+      node.classList.add('dismissed');
+    }
+    localStorage.setItem(STORAGE_KEYS.dismissed, JSON.stringify([...dismissedSet]));
+    render(); // reapply filters like hide dismissed
+  });
+
+  return node;
+}
+
+function formatWhen(it) {
+  const d = new Date(it.date);
+  const datePart = d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  const timePart = [it.startTime, it.endTime].filter(Boolean).join(' to ');
+  return timePart ? `${datePart}, ${timePart}` : datePart;
+}
+
+function buildMapUrl(it) {
+  // Prefer lat, lng if available
+  if (it.lat != null && it.lng != null) {
+    return `https://www.google.com/maps/search/?api=1&query=${it.lat},${it.lng}`;
+  }
+  const q = encodeURIComponent(`${it.address} ${it.suburb} ${it.postcode}`.trim());
+  return `https://www.google.com/maps/search/?api=1&query=${q}`;
+}
+
+function askForGeo() {
+  if (!navigator.geolocation) {
+    els.geoStatus.textContent = 'Location is not supported on this device.';
+    hasAskedGeo = true;
+    return;
+  }
+  hasAskedGeo = true;
+  els.geoStatus.textContent = 'Getting your location for distance, please allow if asked.';
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      els.geoStatus.textContent = 'Location set.';
+      render();
+    },
+    err => {
+      els.geoStatus.textContent = 'Could not get location, distance features will be limited.';
+    },
+    { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 }
+  );
+}
+
+// events
+els.apply.addEventListener('click', render);
+els.reset.addEventListener('click', () => {
+  els.q.value = '';
+  els.suburb.value = '';
+  els.postcode.value = '';
+  els.dateFrom.value = '';
+  els.dateTo.value = '';
+  els.maxKm.value = '';
+  els.sortBy.value = 'dateAsc';
+  els.dows.forEach(cb => (cb.checked = false));
+  els.hideViewed.checked = false;
+  els.hideDismissed.checked = true;
+  render();
+});
+['change', 'input'].forEach(ev => {
+  [els.q, els.suburb, els.postcode, els.dateFrom, els.dateTo, els.maxKm, els.sortBy, els.hideViewed, els.hideDismissed].forEach(el => {
+    el.addEventListener(ev, () => {});
+  });
+});
+
+window.addEventListener('beforeinstallprompt', () => {
+  els.installTip.hidden = false;
+});
+
+// start
+loadData().catch(err => {
+  console.error(err);
+  els.list.innerHTML = `<p>Could not load data. Check data file path.</p>`;
+  els.count.textContent = '0 results';
+});
