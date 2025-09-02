@@ -1,81 +1,121 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Garage Sales</title>
-
-  <!-- PWA setup -->
-  <link rel="manifest" href="./manifest.json">
-  <meta name="theme-color" content="#111827">
-  <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
-  <!-- Tailwind -->
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <style>
-    body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; }
-    #map { height: 500px; width: 100%; margin-top: 1rem; }
-  </style>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0a7">
+  <link rel="icon" href="icons/icon_192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="icons/icon_192.png">
+  <meta name="description" content="Find garage sales near you" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <h1 class="text-2xl font-bold mb-4">Garage Sales</h1>
+  <header class="topbar">
+    <div class="brand">Garage Sales</div>
+    <button id="install_btn" class="btn_primary" hidden>Install app</button>
+  </header>
 
-  <form>
-    <label>Date</label>
-    <input type="date" value="2025-08-31"><br><br>
+  <main class="layout">
+    <aside class="filters_panel" id="filters_panel">
+      <h2>Filters</h2>
 
-    <label>Town, city or postcode</label>
-    <input type="text" value="Toowoomba"><br><br>
+      <label>
+        Keywords
+        <input id="f_keywords" type="text" placeholder="tools, toys, moving">
+      </label>
 
-    <label>Item</label>
-    <input type="text" placeholder="bike, pram, tools"><br><br>
+      <label>
+        Suburb
+        <input id="f_suburb" type="text" placeholder="Cunnamulla, Wyandra">
+      </label>
 
-    <div>
-      <label>Sources</label><br>
-      <input type="checkbox" checked> Craigslist
-      <input type="checkbox" checked> Facebook
-      <input type="checkbox" checked> Newspapers
-      <input type="checkbox" checked> Community
-      <input type="checkbox" checked> Gumtree
-      <input type="checkbox" checked> Marketplace
-    </div>
-  </form>
+      <label>
+        Postcode
+        <input id="f_postcode" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="eg 4490">
+      </label>
 
-  <div id="map"></div>
+      <div class="grid_2">
+        <label>
+          From date
+          <input id="f_date_from" type="date">
+        </label>
+        <label>
+          To date
+          <input id="f_date_to" type="date">
+        </label>
+      </div>
 
-  <script>
-    // Map
-    const map = L.map('map').setView([-27.56, 151.95], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap'
-    }).addTo(map);
+      <label class="checkline">
+        <input id="f_future_only" type="checkbox" checked>
+        Show future dates only
+      </label>
 
-    // Example markers
-    const markers = [
-      [-27.56, 151.95],
-      [-27.55, 151.96],
-      [-27.57, 151.94]
-    ];
-    markers.forEach(([lat, lon]) => {
-      L.marker([lat, lon]).addTo(map);
-    });
-  </script>
+      <details>
+        <summary>Distance filter</summary>
+        <label class="small">
+          Radius in km
+          <input id="f_radius_km" type="number" min="1" step="1" placeholder="10">
+        </label>
+        <label class="small">
+          From postcode
+          <input id="f_origin_postcode" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="optional">
+        </label>
+        <button id="use_my_location" class="btn_link">Use my location</button>
+        <p class="hint">If you enter an origin postcode the app will use its approximate centre. If you click use my location it will use your device location.</p>
+      </details>
 
-  <!-- Service worker registration -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js', { scope: './' });
-      });
-    }
-  </script>
+      <div class="actions">
+        <button id="apply_filters" class="btn_primary">Apply filters</button>
+        <button id="clear_filters" class="btn_ghost">Clear</button>
+      </div>
+
+      <hr>
+
+      <h3>Data</h3>
+      <p class="hint">You can add your own list. CSV columns: title, address, suburb, postcode, date, start_time, end_time, description, lat, lng, url</p>
+      <input id="csv_input" type="file" accept=".csv,text/csv">
+      <button id="reset_sample" class="btn_ghost">Load sample data</button>
+    </aside>
+
+    <section class="results_area">
+      <div class="toolbar">
+        <span id="result_count">0 results</span>
+        <select id="sort_by">
+          <option value="date_asc">Sort by date</option>
+          <option value="distance_asc">Sort by distance</option>
+          <option value="title_asc">Sort by title</option>
+        </select>
+      </div>
+
+      <div id="cards" class="cards"></div>
+      <template id="card_template">
+        <article class="card">
+          <div class="card_head">
+            <h3 class="card_title"></h3>
+            <span class="chip chip_date"></span>
+          </div>
+          <div class="card_body">
+            <p class="card_line card_addr"></p>
+            <p class="card_line card_desc"></p>
+            <p class="card_line card_dist" hidden></p>
+          </div>
+          <div class="card_actions">
+            <a class="btn_visit" target="_blank" rel="noopener">Visit</a>
+            <button class="btn_viewed">Viewed</button>
+            <button class="btn_dismiss">Dismiss</button>
+          </div>
+        </article>
+      </template>
+    </section>
+  </main>
+
+  <footer class="footnote">
+    <p>Tip, click Viewed to mark cards you have already checked. Dismiss hides a card. Both are remembered on this device.</p>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
