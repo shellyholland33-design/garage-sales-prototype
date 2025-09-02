@@ -1,121 +1,17 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Garage Sales</title>
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0a7">
-  <link rel="icon" href="icons/icon_192.png" sizes="192x192">
-  <link rel="apple-touch-icon" href="icons/icon_192.png">
-  <meta name="description" content="Find garage sales near you" />
-  <link rel="stylesheet" href="styles.css" />
+  <meta charset="utf-8">
+  <title>Not found</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">Garage Sales</div>
-    <button id="install_btn" class="btn_primary" hidden>Install app</button>
-  </header>
-
-  <main class="layout">
-    <aside class="filters_panel" id="filters_panel">
-      <h2>Filters</h2>
-
-      <label>
-        Keywords
-        <input id="f_keywords" type="text" placeholder="tools, toys, moving">
-      </label>
-
-      <label>
-        Suburb
-        <input id="f_suburb" type="text" placeholder="Cunnamulla, Wyandra">
-      </label>
-
-      <label>
-        Postcode
-        <input id="f_postcode" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="eg 4490">
-      </label>
-
-      <div class="grid_2">
-        <label>
-          From date
-          <input id="f_date_from" type="date">
-        </label>
-        <label>
-          To date
-          <input id="f_date_to" type="date">
-        </label>
-      </div>
-
-      <label class="checkline">
-        <input id="f_future_only" type="checkbox" checked>
-        Show future dates only
-      </label>
-
-      <details>
-        <summary>Distance filter</summary>
-        <label class="small">
-          Radius in km
-          <input id="f_radius_km" type="number" min="1" step="1" placeholder="10">
-        </label>
-        <label class="small">
-          From postcode
-          <input id="f_origin_postcode" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="optional">
-        </label>
-        <button id="use_my_location" class="btn_link">Use my location</button>
-        <p class="hint">If you enter an origin postcode the app will use its approximate centre. If you click use my location it will use your device location.</p>
-      </details>
-
-      <div class="actions">
-        <button id="apply_filters" class="btn_primary">Apply filters</button>
-        <button id="clear_filters" class="btn_ghost">Clear</button>
-      </div>
-
-      <hr>
-
-      <h3>Data</h3>
-      <p class="hint">You can add your own list. CSV columns: title, address, suburb, postcode, date, start_time, end_time, description, lat, lng, url</p>
-      <input id="csv_input" type="file" accept=".csv,text/csv">
-      <button id="reset_sample" class="btn_ghost">Load sample data</button>
-    </aside>
-
+  <main class="layout" style="grid-template-columns: 1fr;">
     <section class="results_area">
-      <div class="toolbar">
-        <span id="result_count">0 results</span>
-        <select id="sort_by">
-          <option value="date_asc">Sort by date</option>
-          <option value="distance_asc">Sort by distance</option>
-          <option value="title_asc">Sort by title</option>
-        </select>
-      </div>
-
-      <div id="cards" class="cards"></div>
-      <template id="card_template">
-        <article class="card">
-          <div class="card_head">
-            <h3 class="card_title"></h3>
-            <span class="chip chip_date"></span>
-          </div>
-          <div class="card_body">
-            <p class="card_line card_addr"></p>
-            <p class="card_line card_desc"></p>
-            <p class="card_line card_dist" hidden></p>
-          </div>
-          <div class="card_actions">
-            <a class="btn_visit" target="_blank" rel="noopener">Visit</a>
-            <button class="btn_viewed">Viewed</button>
-            <button class="btn_dismiss">Dismiss</button>
-          </div>
-        </article>
-      </template>
+      <h1>Page not found</h1>
+      <p><a href="/">Go to the app</a></p>
     </section>
   </main>
-
-  <footer class="footnote">
-    <p>Tip, click Viewed to mark cards you have already checked. Dismiss hides a card. Both are remembered on this device.</p>
-  </footer>
-
-  <script src="data.js"></script>
-  <script src="app.js"></script>
 </body>
 </html>
