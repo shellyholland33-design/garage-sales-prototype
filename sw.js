@@ -1,4 +1,5 @@
-const CACHE_NAME = "garage_sales_v1";
+const CACHE_NAME = "garage_sales_v6";
+
 const ASSETS = [
   "./",
   "./index.html",
